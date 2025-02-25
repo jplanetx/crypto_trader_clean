@@ -26,7 +26,6 @@ class EmergencyManager:
 
         # Configure logger - keep it simple and let pytest's caplog handle the setup
         self.logger = logging.getLogger(__name__)
-        self.logger.setLevel(logging.CRITICAL)
         
         # Create backup directory
         os.makedirs(self.backup_dir, exist_ok=True)

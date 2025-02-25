@@ -13,7 +13,25 @@ def emergency_manager(tmp_path):
     manager = EmergencyManager(backup_dir=str(backup_dir), config=config)
     yield manager
     # Teardown: remove the backup directory after the test
-    shutil.rmtree(str(backup_dir))
+    try:
+        # Close any potential file handles
+        import gc
+        gc.collect()  # Force garbage collection to close any lingering file handles
+        
+        # Try to remove the directory
+        if backup_dir.exists():
+            for retry in range(3):  # Retry a few times
+                try:
+                    shutil.rmtree(str(backup_dir), ignore_errors=True)
+                    break
+                except (PermissionError, OSError):
+                    import time
+                    time.sleep(0.1)  # Small delay before retry
+    except Exception as e:
+        import warnings
+        warnings.warn(f"Failed to cleanup test directory: {e}")
+        # Don't fail the test if cleanup fails
+        pass
 
 @pytest.fixture
 def test_file(tmp_path):
