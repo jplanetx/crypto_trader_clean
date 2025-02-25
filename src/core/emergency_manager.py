@@ -24,8 +24,9 @@ class EmergencyManager:
         self.backup_dir = backup_dir
         self.config = config
 
-        # Configure logger - keep it simple and let pytest's caplog handle the setup
+        # Configure logger with NullHandler to avoid logging configuration conflicts
         self.logger = logging.getLogger(__name__)
+        self.logger.addHandler(logging.NullHandler())
         
         # Create backup directory
         os.makedirs(self.backup_dir, exist_ok=True)
