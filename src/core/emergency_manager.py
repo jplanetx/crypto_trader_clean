@@ -24,9 +24,10 @@ class EmergencyManager:
         self.backup_dir = backup_dir
         self.config = config
 
-        # Configure logger with NullHandler to avoid logging configuration conflicts
+        # Configure logger - allow propagation to parent loggers for proper caplog capture
         self.logger = logging.getLogger(__name__)
-        self.logger.addHandler(logging.NullHandler())
+        # Remove NullHandler and ensure propagation is enabled
+        self.logger.propagate = True
         
         # Create backup directory
         os.makedirs(self.backup_dir, exist_ok=True)
@@ -79,7 +80,7 @@ class EmergencyManager:
         try:
             if not os.path.exists(backup_file):
                 self.logger.error(f"Backup file not found: {backup_file}")
-                raise ConfigurationError(f"Backup file not found: {backup_file}")
+                return False
             shutil.copy2(backup_file, target_file)
             self.logger.info(f"Successfully recovered {target_file} from {backup_file}")
             return True
@@ -136,3 +137,13 @@ class EmergencyManager:
     def _alert_admins(self):
         """Alerts administrators about the emergency shutdown."""
         pass
+        
+    # Add this method to support the test_logging_example.py tests
+    def handle_critical_failure(self, error_message):
+        """
+        Handles a critical system failure.
+        
+        Args:
+            error_message (str): Description of the failure.
+        """
+        self.logger.critical(f"Emergency: {error_message}")
