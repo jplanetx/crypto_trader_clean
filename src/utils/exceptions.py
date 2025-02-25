@@ -31,3 +31,8 @@ class ExchangeError(TradingException):
     """Raised when there is an error communicating with the exchange."""
     def __init__(self, message: str, error_code: int = None):
         super().__init__(f"Exchange error: {message}", error_code)
+        
+class StreamingError(TradingException):
+    """Raised when there is an error with WebSocket streaming."""
+    def __init__(self, message: str, error_code: int = None):
+        super().__init__(f"Streaming error: {message}", error_code)

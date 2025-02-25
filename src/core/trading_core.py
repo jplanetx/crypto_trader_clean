@@ -1,106 +1,110 @@
 """
 Core trading functionality implementation.
+
+This module coordinates all trading operations including:
+- Strategy execution
+- Position management
+- Market data processing
+- Risk management
+- Technical analysis
 """
 import logging
 import asyncio
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional, List, Union
 from decimal import Decimal
 from datetime import datetime
 import os
-import coinbasepro
 import numpy as np
 import pandas as pd
 
-from .order_executor import OrderExecutor
+from .order_executor import OrderExecutor, CoinbaseExchange
 from .config_manager import ConfigManager, TradingConfig
 from ..utils.exceptions import (
     TradingException,
     ConfigurationError,
     OrderExecutionError
 )
-import json
-from src.core.coinbase_streaming import CoinbaseStreaming
+from .coinbase_streaming import CoinbaseStreaming
 
+# Configure module logger
 logger = logging.getLogger(__name__)
-
-class CoinbaseExchange:
-    """Handles real-time data streaming from Coinbase."""
-
-    def __init__(self, api_key: str, api_secret: str):
-        self.api_key = api_key
-        self.api_secret = api_secret
-        self.ws = None
-        self.url = "wss://advanced-trade-ws.coinbase.com"  # Replace with actual WebSocket URL
-        self.products = ["BTC-USD"]
-        self.channels = ["ticker"]
-        self.auth_client = coinbasepro.AuthenticatedClient(self.api_key, self.api_secret, os.getenv("COINBASE_API_PASSPHRASE"))
-
-    async def connect(self):
-        """Connect to the Coinbase WebSocket stream."""
-        try:
-            # Use the cbpro library to connect to the WebSocket stream
-            # Replace with the correct implementation based on the documentation
-            # For example:
-            # self.ws = cbpro.WebsocketClient(url=self.url, products=self.products, auth=self.auth_client, channels=self.channels)
-            # self.ws.message_callback = self.on_message
-            # self.ws.start()
-            logger.info("Coinbase WebSocket connected.")
-        except Exception as e:
-            logger.error(f"WebSocket error: {e}")
-
-    async def on_message(self, message):
-        """Process incoming WebSocket messages."""
-        try:
-            logger.info(f"Received message: {message}")
-        except Exception as e:
-            logger.error(f"Error processing message: {e}")
-
-    async def close(self):
-        """Close the WebSocket connection."""
-        if self.ws:
-            # Replace with the correct implementation based on the documentation
-            # self.ws.close()
-            logger.info("Coinbase WebSocket disconnected.")
-
-    async def run(self):
-        """Run the WebSocket client."""
-        await self.connect()
+logger.propagate = True  # Ensure logs propagate to parent loggers
 
 class TradingCore:
-    """Coordinates trading operations and manages system state."""
+    """
+    Coordinates trading operations and manages system state.
+    
+    This class serves as the central coordinator for the trading system,
+    managing trading strategies, position tracking, and system state.
+    """
 
     def __init__(
         self,
         config_path: Optional[str] = None,
-        exchange_interface: Optional[Any] = None,
+        exchange_interface: Optional[CoinbaseExchange] = None,
         risk_manager: Optional[Any] = None
     ):
-        self.config_manager = ConfigManager(config_path)
-        self.config: TradingConfig = self.config_manager.config
-
-        api_key = self.config.api_key
-        api_secret = self.config.api_secret
-        if not hasattr(self.config.risk_config, 'max_trade_size'):
-            self.config.risk_config.max_trade_size = 1
-
-        self.exchange_interface = CoinbaseExchange(api_key=api_key, api_secret=api_secret)
+        """
+        Initialize the TradingCore.
         
-        self.order_executor = OrderExecutor(
-            exchange_interface=self.exchange_interface,
-            risk_manager=risk_manager
-        )
+        Args:
+            config_path: Optional path to configuration file
+            exchange_interface: Optional pre-configured exchange interface
+            risk_manager: Optional risk management component
+            
+        Raises:
+            ConfigurationError: If trading configuration is invalid
+        """
+        logger.info("Initializing TradingCore")
+        try:
+            # Load configuration
+            self.config_manager = ConfigManager(config_path)
+            self.config: TradingConfig = self.config_manager.config
 
-        # Initialize Coinbase streaming
-        self.coinbase_streaming = CoinbaseStreaming(
-            api_key=api_key,
-            api_secret=api_secret,
-            product_ids=self.config.trading_pairs,
-            channels=["ticker"]  # Subscribe to the ticker channel
-        )
+            # Initialize exchange interface
+            if exchange_interface:
+                self.exchange_interface = exchange_interface
+            else:
+                if not all([self.config.api_key, self.config.api_secret]):
+                    error_msg = "API credentials not found in configuration"
+                    logger.error(error_msg)
+                    raise ConfigurationError(error_msg)
+                    
+                self.exchange_interface = CoinbaseExchange(
+                    api_key=self.config.api_key,
+                    api_secret=self.config.api_secret
+                )
+
+            # Initialize order executor
+            self.order_executor = OrderExecutor(
+                exchange_interface=self.exchange_interface,
+                risk_manager=risk_manager
+            )
+
+            # Initialize Coinbase streaming
+            self.coinbase_streaming = CoinbaseStreaming(
+                api_key=self.config.api_key,
+                api_secret=self.config.api_secret,
+                product_ids=self.config.trading_pairs,
+                channels=["ticker"]
+            )
+            
+            # Trading state initialization
+            self._initialize_trading_state()
+            
+            logger.info("TradingCore initialization complete")
+            
+        except Exception as e:
+            error_msg = f"Failed to initialize TradingCore: {e}"
+            logger.error(error_msg)
+            raise ConfigurationError(error_msg)
+
+    def _initialize_trading_state(self) -> None:
+        """Initialize internal trading state variables."""
+        logger.debug("Initializing trading state")
         
-        # Trading state
         self.active_trades: Dict[str, Dict[str, Any]] = {}
-        self.price_data: Dict[str, List[float]] = {}  # Store price data for SMA calculation
+        self.price_data: Dict[str, List[float]] = {}
         self.daily_stats: Dict[str, Any] = {
             'trades': 0,
             'volume': Decimal('0'),
@@ -110,299 +114,463 @@ class TradingCore:
         self.is_running: bool = False
         self.streaming_task: Optional[asyncio.Task[None]] = None
 
-
     async def initialize(self) -> None:
-        """Initialize the trading system."""
+        """
+        Initialize the trading system.
+        
+        This method performs startup tasks including:
+        - Configuration validation
+        - Exchange connection
+        - Data streaming initialization
+        
+        Raises:
+            ConfigurationError: If initialization fails
+        """
         try:
-            # Load configuration
+            logger.info("Starting trading system initialization")
+            
+            # Load and validate configuration
             self.config = self.config_manager.load_config()
-            logger.info("Trading system initialized with configuration.")
+            logger.info("Configuration loaded successfully")
 
+            # Initialize exchange connection
             await self.exchange_interface.connect()
+            logger.info("Exchange connection established")
 
             # Validate trading environment
             await self._validate_environment()
+            logger.info("Trading environment validated")
 
+            # Start components
             self.is_running = True
-            logger.info("Trading system initialization complete.")
-
-            # Start the Coinbase streaming task
             self.streaming_task = asyncio.create_task(self._start_coinbase_streaming())
-
-            # Start trading loop
             asyncio.create_task(self._trading_loop())
+            
+            logger.info("Trading system initialization complete")
 
         except ConfigurationError as e:
-            logger.error(f"Configuration error during initialization: {str(e)}")
+            logger.error(f"Configuration error during initialization: {e}")
             raise
         except Exception as e:
-            logger.error(f"Error during initialization: {str(e)}")
-            raise TradingException(f"Initialization failed: {str(e)}")
-
-    async def _start_coinbase_streaming(self) -> None:
-        """Start the Coinbase streaming service."""
-        try:
-            await self.coinbase_streaming.connect()
-            asyncio.create_task(self.coinbase_streaming.receive_data())
-        except Exception as e:
-            logger.error(f"Error starting Coinbase streaming: {e}")
+            error_msg = f"Initialization failed: {e}"
+            logger.error(error_msg)
+            raise TradingException(error_msg)
 
     async def _validate_environment(self) -> None:
-        """Validate trading environment and connectivity."""
+        """
+        Validate trading environment and connectivity.
+        
+        Raises:
+            ConfigurationError: If validation fails
+        """
+        logger.debug("Validating trading environment")
+        
         trading_pairs = self.config.trading_pairs
         if not trading_pairs:
-            raise ConfigurationError("No trading pairs configured")
+            error_msg = "No trading pairs configured"
+            logger.error(error_msg)
+            raise ConfigurationError(error_msg)
 
-        # Basic environment checks
         if not self.config_manager.is_paper_trading():
             if not all([self.config.api_key, self.config.api_secret]):
-                raise ConfigurationError("API credentials required for live trading")
+                error_msg = "API credentials required for live trading"
+                logger.error(error_msg)
+                raise ConfigurationError(error_msg)
+                
+        logger.debug("Trading environment validation successful")
 
-    async def execute_trade(self, trading_pair: str, side: str, size: float, price: float) -> Dict[str, Any]:
-        """Execute a trade with position and risk management."""
+    async def _start_coinbase_streaming(self) -> None:
+        """
+        Start the Coinbase data streaming service.
+        
+        Raises:
+            TradingException: If streaming initialization fails
+        """
         try:
-            # Get current price from streaming data
-            current_price = await self.get_current_price(trading_pair)
-            logger.info(f"Executing trade: {side} {size} {trading_pair} @ {price}, current price: {current_price}")
+            logger.info("Starting Coinbase data streaming")
+            await self.coinbase_streaming.connect()
+            asyncio.create_task(self.coinbase_streaming.receive_data())
+            logger.info("Coinbase streaming started successfully")
+        except Exception as e:
+            error_msg = f"Failed to start Coinbase streaming: {e}"
+            logger.error(error_msg)
+            raise TradingException(error_msg)
 
-            # Validate trading pair
-            if not self.config_manager.validate_trading_pair(trading_pair):
-                raise ConfigurationError(f"Invalid trading pair: {trading_pair}")
-
-            # Validate order side
-            if side not in ['buy', 'sell']:
-                raise ValueError(f"Invalid order side: {side}. Must be 'buy' or 'sell'.")
-
-            # Risk management parameters from config
-            stop_loss_pct = self.config.risk_config.stop_loss_pct
-            take_profit_pct = self.config.risk_config.take_profit_pct
+    async def execute_trade(
+        self, 
+        trading_pair: str, 
+        side: str, 
+        size: float, 
+        price: float
+    ) -> Dict[str, Any]:
+        """
+        Execute a trade with position and risk management.
+        
+        Args:
+            trading_pair: Trading pair symbol
+            side: Order side ('buy' or 'sell')
+            size: Order size in base currency
+            price: Order price
             
-            # Calculate stop loss and take profit prices
-            if side == "buy":
-                stop_loss_price = price * (1 - stop_loss_pct)
-                take_profit_price = price * (1 + take_profit_pct)
-            else:
-                stop_loss_price = price * (1 + stop_loss_pct)
-                take_profit_price = price * (1 - take_profit_pct)
+        Returns:
+            Dict[str, Any]: Order execution details
+            
+        Raises:
+            ValidationError: If parameters are invalid
+            OrderExecutionError: If order execution fails
+        """
+        try:
+            # Get current market price
+            current_price = await self.get_current_price(trading_pair)
+            logger.info(f"Executing trade: {side} {size} {trading_pair} @ {price}")
+            logger.debug(f"Current market price: {current_price}")
+
+            # Trading pair validation
+            if not self.config_manager.validate_trading_pair(trading_pair):
+                error_msg = f"Invalid trading pair: {trading_pair}"
+                logger.error(error_msg)
+                raise ConfigurationError(error_msg)
+
+            # Order side validation
+            if side not in ['buy', 'sell']:
+                error_msg = f"Invalid order side: {side}"
+                logger.error(error_msg)
+                raise ValueError(error_msg)
+
+            # Get risk parameters
+            stop_loss_pct = self.config.risk_config.stop_loss_pct
+            take_profit_pct = getattr(self.config.risk_config, 'take_profit_pct', 0.05)
+            
+            # Calculate order prices
+            stop_loss_price = price * (1 - stop_loss_pct if side == "buy" else 1 + stop_loss_pct)
+            take_profit_price = price * (1 + take_profit_pct if side == "buy" else 1 - take_profit_pct)
+            
+            logger.debug(f"Order prices - Stop Loss: {stop_loss_price}, Take Profit: {take_profit_price}")
             
             # Check daily loss limit
-            if self.daily_stats['pnl'] < -abs(self.config.risk_config.daily_loss_limit):
-                logger.warning("Daily loss limit reached. Trading stopped.")
+            if self.daily_stats['pnl'] < -abs(getattr(self.config.risk_config, 'daily_loss_limit', float('inf'))):
+                logger.warning("Daily loss limit reached. Trading halted.")
                 self.is_running = False
-                return {}  # Return empty dict to indicate no trade
+                return {}
 
             # Execute order
             result = await self.order_executor.execute_order(
                 side=side,
                 size=size,
                 price=price,
-                trading_pair=trading_pair,
-                stop_loss_price=stop_loss_price,
-                take_profit_price=take_profit_price
+                trading_pair=trading_pair
             )
 
-            # Update trading state
+            # Update state if order filled
             if result['status'] == 'filled':
                 await self._update_trading_state(result)
+                logger.info(f"Trade executed successfully - Order ID: {result.get('order_id', 'N/A')}")
 
-            logger.info(f"Trade executed successfully. Order ID: {result.get('order_id', 'N/A')}")
             return result
 
         except (ConfigurationError, OrderExecutionError, ValueError) as e:
-            logger.error(f"Trade execution error: {str(e)}")
+            logger.error(f"Trade execution error: {e}")
             raise
         except Exception as e:
-            logger.error(f"Unexpected error during trade execution: {str(e)}")
-            raise TradingException(f"Trade execution failed: {str(e)}")
+            error_msg = f"Unexpected error during trade execution: {e}"
+            logger.error(error_msg)
+            raise TradingException(error_msg)
 
     async def get_current_price(self, trading_pair: str) -> float:
-        """Get the current price from the Coinbase streaming data."""
-        return self.coinbase_streaming.get_current_price(trading_pair)
+        """
+        Get the current market price from streaming data.
+        
+        Args:
+            trading_pair: Trading pair symbol
+            
+        Returns:
+            float: Current market price
+            
+        Raises:
+            TradingException: If price data is unavailable
+        """
+        try:
+            return self.coinbase_streaming.get_current_price(trading_pair)
+        except Exception as e:
+            error_msg = f"Failed to get current price for {trading_pair}: {e}"
+            logger.error(error_msg)
+            raise TradingException(error_msg)
 
     async def _update_trading_state(self, trade_result: Dict[str, Any]) -> None:
-        """Update internal trading state after successful trade."""
-        trading_pair = trade_result['trading_pair']
-        size = Decimal(trade_result['size'])
-        price = Decimal(trade_result['price'])
+        """
+        Update internal trading state after trade execution.
         
-        # Update daily statistics
-        self.daily_stats['trades'] += 1
-        self.daily_stats['volume'] += size * price
-        
-        # Track active trade
-        self.active_trades[trade_result['order_id']] = {
-            **trade_result,
-            'timestamp': datetime.utcnow().isoformat()
-        }
-
-    async def get_position(self, trading_pair: str) -> Dict[str, Any]:
-        """Get current position for a trading pair."""
-        return self.order_executor.get_position(trading_pair)
-
-    async def adjust_position(
-        self,
-        trading_pair: str,
-        target_size: float,
-        current_price: float
-    ) -> Optional[Dict[str, Any]]:
-        """Adjust position to target size."""
-        return await self.order_executor.adjust_position(
-            trading_pair=trading_pair,
-            target_size=target_size,
-            current_price=current_price
-        )
-
-    def get_trading_pairs(self) -> List[str]:
-        """Get configured trading pairs."""
-        return self.config.trading_pairs
-
-    def get_daily_stats(self) -> Dict[str, Any]:
-        """Get daily trading statistics."""
-        return {
-            'trades': self.daily_stats['trades'],
-            'volume': str(self.daily_stats['volume']),
-            'pnl': str(self.daily_stats['pnl']),
-            'last_reset': self.daily_stats['last_reset']
-        }
-
-    def reset_daily_stats(self) -> None:
-        """Reset daily trading statistics."""
-        self.daily_stats = {
-            'trades': 0,
-            'volume': Decimal('0'),
-            'pnl': Decimal('0'),
-            'last_reset': datetime.utcnow().isoformat()
-        }
-
-    def reset_daily_pnl(self) -> None:
-        """Reset daily PnL for testing purposes."""
-        self.daily_stats['pnl'] = Decimal('0')
-        logger.info("Daily PnL reset to 0.")
-
-    async def shutdown(self) -> None:
-        """Gracefully shutdown the trading system."""
-        logger.info("Initiating trading system shutdown...")
-        self.is_running = False
-        
-        # Close all positions if configured
-        if self.config.risk_config.max_position_size == Decimal('0'):
-            for trading_pair in self.config.trading_pairs:
-                position = await self.get_position(trading_pair)
-                if position['size'] != Decimal('0'):
-                    try:
-                        await self.adjust_position(
-                            trading_pair=trading_pair,
-                            target_size=0,
-                            current_price=0  # Market order
-                        )
-                    except Exception as e:
-                        logger.error(f"Error closing position during shutdown: {str(e)}")
-
-        logger.info("Trading system shutdown complete.")
-
-    def is_active(self) -> bool:
-        """Check if the trading system is active."""
-        return self.is_running
+        Args:
+            trade_result: Trade execution details
+            
+        Raises:
+            TradingException: If state update fails
+        """
+        try:
+            trading_pair = trade_result['trading_pair']
+            size = Decimal(trade_result['size'])
+            price = Decimal(trade_result['price'])
+            
+            # Update statistics
+            logger.debug("Updating trading statistics")
+            self.daily_stats['trades'] += 1
+            self.daily_stats['volume'] += size * price
+            
+            # Track active trade
+            self.active_trades[trade_result['order_id']] = {
+                **trade_result,
+                'timestamp': datetime.utcnow().isoformat()
+            }
+            
+            logger.debug(f"Trading state updated - Trades: {self.daily_stats['trades']}, "
+                      f"Volume: {self.daily_stats['volume']}")
+                      
+        except Exception as e:
+            error_msg = f"Failed to update trading state: {e}"
+            logger.error(error_msg)
+            raise TradingException(error_msg)
 
     def store_price_data(self, trading_pair: str, price: float) -> None:
-        """Stores the price data for the given trading pair."""
-        if trading_pair not in self.price_data:
-            self.price_data[trading_pair] = []
-        self.price_data[trading_pair].append(price)
-        logger.debug(f"Storing price data for {trading_pair}: {price}")
+        """
+        Store price data for technical analysis.
+        
+        Args:
+            trading_pair: Trading pair symbol
+            price: Market price
+        """
+        try:
+            if trading_pair not in self.price_data:
+                self.price_data[trading_pair] = []
+            self.price_data[trading_pair].append(price)
+            logger.debug(f"Stored price data for {trading_pair}: {price}")
+        except Exception as e:
+            logger.error(f"Failed to store price data: {e}")
 
     def calculate_moving_average(self, trading_pair: str, window: int) -> float:
-        """Calculate the moving average of the given data."""
-        if trading_pair not in self.price_data or len(self.price_data[trading_pair]) < window:
-            return 0  # Not enough data
+        """
+        Calculate simple moving average.
         
-        prices = self.price_data[trading_pair][-window:]
-        return pd.Series(prices).mean()
+        Args:
+            trading_pair: Trading pair symbol
+            window: MA window size
+            
+        Returns:
+            float: Moving average value
+            
+        Raises:
+            TradingException: If calculation fails
+        """
+        try:
+            if trading_pair not in self.price_data:
+                return 0
+                
+            prices = self.price_data[trading_pair]
+            if len(prices) < window:
+                logger.debug(f"Insufficient data for {window}-period MA calculation")
+                return 0
+                
+            ma_value = pd.Series(prices[-window:]).mean()
+            logger.debug(f"{window}-period MA for {trading_pair}: {ma_value}")
+            return ma_value
+            
+        except Exception as e:
+            error_msg = f"Failed to calculate moving average: {e}"
+            logger.error(error_msg)
+            raise TradingException(error_msg)
 
     def calculate_rsi(self, trading_pair: str, window: int) -> float:
-        """Calculate the Relative Strength Index (RSI) of the given data."""
-        # This is a placeholder. The actual implementation will depend on how the
-        # streaming data is stored and accessed.
-        # For example, you might have a list of prices and calculate the RSI from that.
-        return 50  # Replace with actual calculation
-
-    async def run_moving_average_crossover_strategy(self, trading_pair: str):
-        """Runs the moving average crossover strategy."""
+        """
+        Calculate Relative Strength Index (RSI).
+        
+        Args:
+            trading_pair: Trading pair symbol
+            window: RSI period
+            
+        Returns:
+            float: RSI value
+            
+        Raises:
+            TradingException: If calculation fails
+        """
         try:
-            # Strategy parameters from config
+            if trading_pair not in self.price_data:
+                return 50
+                
+            prices = self.price_data[trading_pair]
+            if len(prices) < window + 1:
+                logger.debug(f"Insufficient data for {window}-period RSI calculation")
+                return 50
+                
+            # Calculate price changes
+            delta = pd.Series(prices).diff()
+            
+            # Separate gains and losses
+            gains = delta.where(delta > 0, 0)
+            losses = -delta.where(delta < 0, 0)
+            
+            # Calculate RSI
+            avg_gain = gains.rolling(window=window).mean()
+            avg_loss = losses.rolling(window=window).mean()
+            
+            rs = avg_gain / avg_loss
+            rsi = 100 - (100 / (1 + rs.iloc[-1]))
+            
+            logger.debug(f"{window}-period RSI for {trading_pair}: {rsi}")
+            return float(rsi)
+            
+        except Exception as e:
+            error_msg = f"Failed to calculate RSI: {e}"
+            logger.error(error_msg)
+            raise TradingException(error_msg)
+
+    async def run_moving_average_crossover_strategy(self, trading_pair: str) -> None:
+        """
+        Execute moving average crossover trading strategy.
+        
+        Args:
+            trading_pair: Trading pair to trade
+            
+        Raises:
+            TradingException: If strategy execution fails
+        """
+        try:
+            # Get strategy parameters
             short_window = self.config.strategy_config.get('short_window', 5)
             long_window = self.config.strategy_config.get('long_window', 20)
             
-            # Calculate moving averages
+            logger.debug(f"Running MA crossover strategy for {trading_pair}")
+            
+            # Calculate indicators
             short_ma = self.calculate_moving_average(trading_pair, short_window)
             long_ma = self.calculate_moving_average(trading_pair, long_window)
             
-            # Get current price
+            # Get current market data
             current_price = await self.get_current_price(trading_pair)
             self.store_price_data(trading_pair, current_price)
             
             # Generate trading signal
-            signal = 0  # 0: Hold, 1: Buy, -1: Sell
+            signal = 0
             if short_ma > long_ma:
-                signal = 1
+                signal = 1  # Buy signal
             elif short_ma < long_ma:
-                signal = -1
-            
-            # Execute trade
-            size = self.config.risk_config.max_trade_size  # Example size
-            if signal == 1:
-                side = "buy"
-                logger.info(f"SMA Crossover: BUY {trading_pair} at {current_price}, short_ma={short_ma}, long_ma={long_ma}")
-                await self.execute_trade(trading_pair, side, size, current_price)
-            elif signal == -1:
-                side = "sell"
-                logger.info(f"SMA Crossover: SELL {trading_pair} at {current_price}, short_ma={short_ma}, long_ma={long_ma}")
+                signal = -1  # Sell signal
+                
+            # Execute trade if signal present
+            if signal != 0:
+                size = float(self.config.risk_config.max_position_size)
+                side = "buy" if signal == 1 else "sell"
+                
+                logger.info(f"MA Crossover signal for {trading_pair}: {side.upper()}")
+                logger.debug(f"Signal details - Price: {current_price}, "
+                          f"Short MA: {short_ma}, Long MA: {long_ma}")
+                          
                 await self.execute_trade(trading_pair, side, size, current_price)
             else:
-                logger.debug(f"SMA Crossover: No signal for {trading_pair}, short_ma={short_ma}, long_ma={long_ma}")
+                logger.debug(f"No MA Crossover signal for {trading_pair}")
 
         except Exception as e:
-            logger.error(f"SMA Crossover Strategy execution error: {e}")
+            error_msg = f"MA Crossover strategy execution failed: {e}"
+            logger.error(error_msg)
+            raise TradingException(error_msg)
 
-    async def run_rsi_strategy(self, trading_pair: str):
-        """Runs the RSI strategy."""
+    async def run_rsi_strategy(self, trading_pair: str) -> None:
+        """
+        Execute RSI-based trading strategy.
+        
+        Args:
+            trading_pair: Trading pair to trade
+            
+        Raises:
+            TradingException: If strategy execution fails
+        """
         try:
-            # Strategy parameters from config
-            rsi_window = self.config.strategy_config['rsi_window']
-            rsi_oversold = self.config.strategy_config['rsi_oversold']
-            rsi_overbought = self.config.strategy_config['rsi_overbought']
+            # Get strategy parameters
+            rsi_window = self.config.strategy_config.get('rsi_window', 14)
+            rsi_oversold = self.config.strategy_config.get('rsi_oversold', 30)
+            rsi_overbought = self.config.strategy_config.get('rsi_overbought', 70)
+            
+            logger.debug(f"Running RSI strategy for {trading_pair}")
             
             # Calculate RSI
             rsi = self.calculate_rsi(trading_pair, rsi_window)
-            
-            # Get current price
             current_price = await self.get_current_price(trading_pair)
             
             # Generate trading signal
             if rsi < rsi_oversold:
                 side = "buy"
+                logger.info(f"RSI Oversold signal for {trading_pair}")
             elif rsi > rsi_overbought:
                 side = "sell"
+                logger.info(f"RSI Overbought signal for {trading_pair}")
             else:
-                return # No signal
-            
+                logger.debug(f"No RSI signal for {trading_pair} (RSI: {rsi})")
+                return
+                
             # Execute trade
-            size = self.config.risk_config.max_trade_size  # Example size
+            size = float(self.config.risk_config.max_position_size)
+            logger.debug(f"Executing {side} order - Size: {size}, Price: {current_price}")
             await self.execute_trade(trading_pair, side, size, current_price)
 
         except Exception as e:
-            logger.error(f"Strategy execution error: {e}")
+            error_msg = f"RSI strategy execution failed: {e}"
+            logger.error(error_msg)
+            raise TradingException(error_msg)
 
     async def _trading_loop(self) -> None:
-        """Main trading loop."""
-        logger.info("Starting trading loop...")
+        """
+        Main trading loop executing configured strategies.
+        
+        This method runs continuously while the system is active,
+        executing trading strategies for each configured trading pair.
+        """
+        logger.info("Starting main trading loop")
+        
         while self.is_running:
             try:
                 for trading_pair in self.config.trading_pairs:
-                    logger.info(f"Running strategy for {trading_pair}")
+                    logger.debug(f"Running strategies for {trading_pair}")
                     await self.run_moving_average_crossover_strategy(trading_pair)
                     await self.run_rsi_strategy(trading_pair)
-                await asyncio.sleep(1)  # Check every 1 second
+                    
+                await asyncio.sleep(1)  # Trading interval
+                
             except Exception as e:
-                logger.error(f"Trading loop error: {e}")
-                await asyncio.sleep(10)  # Wait before retrying
+                logger.error(f"Error in trading loop: {e}")
+                await asyncio.sleep(10)  # Error backoff
+
+    async def shutdown(self) -> None:
+        """
+        Perform graceful system shutdown.
+        
+        This method ensures all positions are properly closed and
+        resources are released before shutting down.
+        """
+        logger.info("Initiating trading system shutdown")
+        
+        self.is_running = False
+        
+        try:
+            # Close all positions if configured
+            if self.config.risk_config.max_position_size == Decimal('0'):
+                logger.info("Closing all positions")
+                for trading_pair in self.config.trading_pairs:
+                    position = await self.get_position(trading_pair)
+                    if position['size'] != Decimal('0'):
+                        try:
+                            await self.adjust_position(
+                                trading_pair=trading_pair,
+                                target_size=0,
+                                current_price=0  # Market order
+                            )
+                            logger.info(f"Closed position for {trading_pair}")
+                        except Exception as e:
+                            logger.error(f"Failed to close position for {trading_pair}: {e}")
+
+            # Close streaming connection
+            if self.streaming_task:
+                self.streaming_task.cancel()
+                
+            logger.info("Trading system shutdown complete")
+            
+        except Exception as e:
+            logger.error(f"Error during shutdown: {e}")
