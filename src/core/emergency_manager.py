@@ -7,6 +7,10 @@ import logging
 from datetime import datetime
 from ..utils.exceptions import ConfigurationError
 
+# Configure the module logger
+logger = logging.getLogger(__name__)
+logger.propagate = True  # Make sure logs propagate to parent loggers
+
 class EmergencyManager:
     """
     Manages emergency procedures, including creating backups and handling
@@ -23,11 +27,9 @@ class EmergencyManager:
         """
         self.backup_dir = backup_dir
         self.config = config
-
-        # Configure logger - allow propagation to parent loggers for proper caplog capture
-        self.logger = logging.getLogger(__name__)
-        # Remove NullHandler and ensure propagation is enabled
-        self.logger.propagate = True
+        
+        # Use the module logger instead of creating a new one
+        self.logger = logger
         
         # Create backup directory
         os.makedirs(self.backup_dir, exist_ok=True)
@@ -61,7 +63,7 @@ class EmergencyManager:
         This can include stopping critical processes, saving state,
         and alerting administrators.
         """
-        # Log using the critical level
+        # Log at critical level
         self.logger.critical("Emergency shutdown initiated!")
         
         # Implement shutdown logic here
@@ -76,6 +78,9 @@ class EmergencyManager:
         Args:
             backup_file (str): Path to the backup file.
             target_file (str): Path to the file to recover.
+            
+        Returns:
+            bool: True if recovery was successful, False otherwise.
         """
         try:
             if not os.path.exists(backup_file):
@@ -84,7 +89,7 @@ class EmergencyManager:
             shutil.copy2(backup_file, target_file)
             self.logger.info(f"Successfully recovered {target_file} from {backup_file}")
             return True
-        except (OSError, ConfigurationError) as e:
+        except Exception as e:
             self.logger.error(f"Failed to recover {target_file} from {backup_file}: {e}")
             return False
 
@@ -138,7 +143,6 @@ class EmergencyManager:
         """Alerts administrators about the emergency shutdown."""
         pass
         
-    # Add this method to support the test_logging_example.py tests
     def handle_critical_failure(self, error_message):
         """
         Handles a critical system failure.
