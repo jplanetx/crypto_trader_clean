@@ -24,11 +24,17 @@ class EmergencyManager:
         self.backup_dir = backup_dir
         self.config = config
 
-        # Properly configure the logger with name based on module path
+        # Configure logger
         self.logger = logging.getLogger(__name__)
-        
-        # Ensure propagation is enabled (important for test fixtures like caplog)
         self.logger.propagate = True
+
+        # Ensure we have a handler
+        if not self.logger.handlers:
+            handler = logging.StreamHandler()
+            handler.setLevel(logging.CRITICAL)
+            formatter = logging.Formatter('%(name)s - %(levelname)s - %(message)s')
+            handler.setFormatter(formatter)
+            self.logger.addHandler(handler)
         
         # Create backup directory
         os.makedirs(self.backup_dir, exist_ok=True)
