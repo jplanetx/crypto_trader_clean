@@ -89,10 +89,17 @@ def test_recover_from_backup_success(emergency_manager, test_file):
 
 def test_perform_emergency_shutdown(emergency_manager, caplog):
     # Set the level to CRITICAL in caplog to capture critical messages
-    caplog.set_level(logging.CRITICAL)
+    caplog.set_level(logging.CRITICAL, logger="src.core.emergency_manager")
     
     # Perform the emergency shutdown
     emergency_manager.perform_emergency_shutdown()
     
     # Assert that the log message is in the output
     assert "Emergency shutdown initiated!" in caplog.text
+    
+    # Verify the log level and other attributes
+    assert len(caplog.records) == 1
+    record = caplog.records[0]
+    assert record.levelname == "CRITICAL"
+    assert record.message == "Emergency shutdown initiated!"
+    assert record.name == "src.core.emergency_manager"
