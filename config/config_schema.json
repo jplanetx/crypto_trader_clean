@@ -1,0 +1,152 @@
+{
+  "type": "object",
+  "properties": {
+    "trading_pairs": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "risk_management": {
+      "type": "object",
+      "properties": {
+        "max_position_size": {
+          "type": "number"
+        },
+        "stop_loss_pct": {
+          "type": "number"
+        },
+        "max_daily_loss": {
+          "type": "number"
+        },
+        "max_open_orders": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "max_position_size",
+        "stop_loss_pct",
+        "max_daily_loss",
+        "max_open_orders"
+      ]
+    },
+    "paper_trading": {
+      "type": "boolean"
+    },
+    "api_key": {
+      "type": "string"
+    },
+    "api_secret": {
+      "type": "string"
+    },
+    "order_settings": {
+      "type": "object",
+      "properties": {
+        "default_size": {
+          "type": "number"
+        },
+        "min_trade_interval": {
+          "type": "integer"
+        },
+        "max_slippage_pct": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "default_size",
+        "min_trade_interval",
+        "max_slippage_pct"
+      ]
+    },
+    "logging": {
+      "type": "object",
+      "properties": {
+        "level": {
+          "type": "string"
+        },
+        "file_path": {
+          "type": "string"
+        },
+        "rotation": {
+          "type": "string"
+        },
+        "retention": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "level",
+        "file_path",
+        "rotation",
+        "retention"
+      ]
+    },
+    "retry_settings": {
+      "type": "object",
+      "properties": {
+        "max_attempts": {
+          "type": "integer"
+        },
+        "initial_delay": {
+          "type": "number"
+        },
+        "max_delay": {
+          "type": "number"
+        },
+        "backoff_factor": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "max_attempts",
+        "initial_delay",
+        "max_delay",
+        "backoff_factor"
+      ]
+    },
+    "strategy_config": {
+      "type": "object",
+      "properties": {
+        "ma_window": {
+          "type": "integer"
+        },
+        "rsi_window": {
+          "type": "integer"
+        },
+        "rsi_oversold": {
+          "type": "integer"
+        },
+        "rsi_overbought": {
+          "type": "integer"
+        },
+        "short_window": {
+          "type": "integer"
+        },
+        "long_window": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "ma_window",
+        "rsi_window",
+        "rsi_oversold",
+        "rsi_overbought",
+        "short_window",
+        "long_window"
+      ]
+    },
+    "config_version": {
+      "type": "integer"
+    }
+  },
+  "required": [
+    "trading_pairs",
+    "risk_management",
+    "paper_trading",
+    "order_settings",
+    "logging",
+    "retry_settings",
+    "strategy_config",
+    "config_version"
+  ]
+}

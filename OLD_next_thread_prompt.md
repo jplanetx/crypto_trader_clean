@@ -1,0 +1,1 @@
+Implement a Simple Moving Average (SMA) Crossover Strategy in `src/core/trading_core.py`. Calculate the SMA for short and long time periods, generate buy/sell signals based on crossovers, and execute trades using `src/core/order_executor.py`. Add logging for SMA values, signals, and order executions.

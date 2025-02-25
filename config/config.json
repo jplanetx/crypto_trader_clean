@@ -1,0 +1,41 @@
+{
+    "trading_pairs": [
+        "BTC-USD",
+        "ETH-USD"
+    ],
+    "risk_management": {
+        "max_position_size": 5.0,
+        "stop_loss_pct": 0.05,
+        "max_daily_loss": 500.0,
+        "max_open_orders": 5
+    },
+    "paper_trading": true,
+    "api_key": "",
+    "api_secret": "",
+    "order_settings": {
+        "default_size": 0.01,
+        "min_trade_interval": 60,
+        "max_slippage_pct": 0.01
+    },
+    "logging": {
+        "level": "INFO",
+        "file_path": "logs/trading.log",
+        "rotation": "1 day",
+        "retention": "30 days"
+    },
+    "retry_settings": {
+        "max_attempts": 3,
+        "initial_delay": 1.0,
+        "max_delay": 5.0,
+        "backoff_factor": 2.0
+    },
+    "strategy_config": {
+        "ma_window": 20,
+        "rsi_window": 14,
+        "rsi_oversold": 30,
+        "rsi_overbought": 70,
+        "short_window": 5,
+        "long_window": 20
+    },
+    "config_version": 1
+}
