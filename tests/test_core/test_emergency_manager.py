@@ -11,8 +11,6 @@ def emergency_manager(tmp_path):
     backup_dir.mkdir()
     config = {"test_setting": "test_value"}
     manager = EmergencyManager(backup_dir=str(backup_dir), config=config)
-    # Ensure the logger is set to capture CRITICAL messages
-    manager.logger.setLevel(logging.CRITICAL)
     yield manager
     # Teardown: remove the backup directory after the test
     shutil.rmtree(str(backup_dir))
@@ -88,8 +86,8 @@ def test_recover_from_backup_success(emergency_manager, test_file):
     assert content == "This is a test file."
 
 def test_perform_emergency_shutdown(emergency_manager, caplog):
-    # Set the level to CRITICAL in caplog to capture critical messages
-    caplog.set_level(logging.CRITICAL, logger="src.core.emergency_manager")
+    # Configure caplog
+    caplog.set_level(logging.CRITICAL)
     
     # Perform the emergency shutdown
     emergency_manager.perform_emergency_shutdown()
