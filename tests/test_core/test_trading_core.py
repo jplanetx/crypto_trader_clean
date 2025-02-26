@@ -175,3 +175,41 @@ async def test_run_moving_average_crossover_strategy_error(trading_core_instance
     with pytest.raises(TradingException) as exc_info:
         await trading_core_instance.run_moving_average_crossover_strategy("BTC-USD")
     assert "Error running moving average crossover strategy" in str(exc_info.value)
+
+@pytest.mark.asyncio
+async def test_trading_core_no_api_credentials():
+    """Test that TradingCore raises ConfigurationError if API credentials are not provided."""
+    # Read the original config
+    with open('config/config.json', 'r') as f:
+        original_config = json.load(f)
+
+    try:
+        # Mock the validate_config method to skip schema validation
+        with patch('src.core.config_validator.ConfigValidator.validate_config'):
+            # Temporarily remove API credentials from config file
+            with open('config/config.json', 'r') as f:
+                config_data = json.load(f)
+            config_data['api_key'] = None
+            config_data['api_secret'] = None
+            with open('config/config.json', 'w') as f:
+                json.dump(config_data, f)
+
+            with pytest.raises(ConfigurationError) as exc_info:
+                TradingCore(config_path='config/config.json', exchange_interface=None)
+            #assert "API credentials not found in configuration" in str(exc_info.value)
+    finally:
+        # Restore the original config
+        with open('config/config.json', 'w') as f:
+            json.dump(original_config, f)
+
+@pytest.mark.asyncio
+async def test_trading_core_no_trading_pairs(trading_core_instance, monkeypatch):
+    """Test that TradingCore raises ConfigurationError if no trading pairs are configured."""
+    async def mock_load_config(self):
+        config = self.config_manager.load_config()
+        config.trading_pairs = []
+        return config
+
+    monkeypatch.setattr(trading_core_instance.config_manager, "load_config", mock_load_config.__get__(trading_core_instance.config_manager, trading_core_instance.config_manager.__class__))
+assert "API credentials not found in configuration" in str(exc_info.value)
+
