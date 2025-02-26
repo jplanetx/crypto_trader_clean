@@ -1,7 +1,7 @@
 import asyncio
 import pytest
+import json
 from decimal import Decimal
-
 from src.core.trading_core import TradingCore
 
 # Dummy implementations to override actual trading behavior in tests
@@ -14,17 +14,40 @@ async def dummy_get_current_price(self, trading_pair: str):
 
 @pytest.fixture
 def trading_core_instance(monkeypatch):
+    # Load API credentials from cdp_api_key.json
+    with open('config/cdp_api_key.json') as f:
+        api_credentials = json.load(f)
+    
+    # Debug: Print loaded API credentials
+    print(f"Loaded API Key: {api_credentials['api_key']}")
+    print(f"Loaded API Secret: {api_credentials['api_secret']}")
+    
     # Create an instance of TradingCore with a dummy config path (won't be loaded in test)
     tc = TradingCore(config_path='config/config.json')
+    
+    # Set the API credentials directly in the TradingCore instance
+    tc.config_manager.config.api_key = api_credentials['api_key']
+    tc.config_manager.config.api_secret = api_credentials['api_secret']
+    
+    # Debug: Print API credentials set in config
+    print(f"Config API Key: {tc.config_manager.config.api_key}")
+    print(f"Config API Secret: {tc.config_manager.config.api_secret}")
+    
+    # Ensure the configuration is loaded correctly
+    tc.config_manager.load_config()
+    
     # Set up a dummy config for testing SMA strategy
     tc.config.strategy_config['short_window'] = 3
     tc.config.strategy_config['long_window'] = 5
+    
     # Set a risk config attribute for testing; add max_trade_size if not present
     if not hasattr(tc.config.risk_config, 'max_trade_size'):
         setattr(tc.config.risk_config, 'max_trade_size', 1)
+    
     # Override methods to avoid real async calls
     monkeypatch.setattr(tc, "execute_trade", dummy_execute_trade.__get__(tc, TradingCore))
     monkeypatch.setattr(tc, "get_current_price", dummy_get_current_price.__get__(tc, TradingCore))
+    
     # Initialize price_data dict for our trading pair
     tc.price_data = {'BTC-USD': []}
     tc.last_trade = {}

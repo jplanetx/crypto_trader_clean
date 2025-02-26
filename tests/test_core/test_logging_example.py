@@ -22,7 +22,7 @@ def test_critical_log_capture(caplog):
     
     # You can also check multiple attributes of the log record
     assert record.levelno == logging.CRITICAL
-    assert record.module == "emergency_manager"
+    assert record.name == "src.core.emergency_manager"
 
 def test_multiple_log_messages(caplog):
     """Demonstrate capturing multiple log messages."""
@@ -81,7 +81,7 @@ def test_log_formatting(caplog):
     
     record = caplog.records[0]
     # Check log follows expected format
-    assert record.name == "emergency_manager"  # Logger name
+    assert record.name == "src.core.emergency_manager"  # Logger name
     assert record.levelname == "CRITICAL"      # Level name
     assert record.pathname.endswith("emergency_manager.py")  # Source file
     assert isinstance(record.created, float)   # Timestamp
