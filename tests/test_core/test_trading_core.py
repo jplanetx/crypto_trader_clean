@@ -3,6 +3,7 @@ import pytest
 import json
 from decimal import Decimal
 from src.core.trading_core import TradingCore
+from src.utils.exceptions import TradingException, ConfigurationError
 
 # Dummy implementations to override actual trading behavior in tests
 async def dummy_execute_trade(self, trading_pair, side, size, price):
@@ -14,40 +15,58 @@ async def dummy_get_current_price(self, trading_pair: str):
 
 @pytest.fixture
 def trading_core_instance(monkeypatch):
-    # Load API credentials from cdp_api_key.json
-    with open('config/cdp_api_key.json') as f:
-        api_credentials = json.load(f)
-    
-    # Debug: Print loaded API credentials
-    print(f"Loaded API Key: {api_credentials['api_key']}")
-    print(f"Loaded API Secret: {api_credentials['api_secret']}")
-    
-    # Create an instance of TradingCore with a dummy config path (won't be loaded in test)
+    # Mock API credentials for testing
+    mock_api_credentials = {
+        "api_key": "mock_api_key",
+        "api_secret": "mock_api_secret",
+    }
+
+    # Write mock API credentials to the configuration file
+    with open('config/config.json', 'w') as f:
+        json.dump({
+            "api_key": mock_api_credentials['api_key'],
+            "api_secret": mock_api_credentials['api_secret'],
+            "trading_pairs": ["BTC-USD", "ETH-USD"],
+            "paper_trading": True,
+            "strategy_config": {
+                "short_window": 3,
+                "long_window": 5
+            },
+            "risk_config": {
+                "max_trade_size": 1
+            }
+        }, f)
+
+    # Create an instance of TradingCore with the updated config path
     tc = TradingCore(config_path='config/config.json')
-    
+
     # Set the API credentials directly in the TradingCore instance
-    tc.config_manager.config.api_key = api_credentials['api_key']
-    tc.config_manager.config.api_secret = api_credentials['api_secret']
-    
+    tc.config_manager.config.api_key = mock_api_credentials['api_key']
+    tc.config_manager.config.api_secret = mock_api_credentials['api_secret']
+
+    # Set the API credentials directly in the TradingCore instance
+    tc.config_manager.config.api_key = mock_api_credentials['api_key']
+    tc.config_manager.config.api_secret = mock_api_credentials['api_secret']
+
     # Debug: Print API credentials set in config
     print(f"Config API Key: {tc.config_manager.config.api_key}")
     print(f"Config API Secret: {tc.config_manager.config.api_secret}")
-    
+
     # Ensure the configuration is loaded correctly
     tc.config_manager.load_config()
-    
+
     # Set up a dummy config for testing SMA strategy
     tc.config.strategy_config['short_window'] = 3
     tc.config.strategy_config['long_window'] = 5
-    
+
     # Set a risk config attribute for testing; add max_trade_size if not present
     if not hasattr(tc.config.risk_config, 'max_trade_size'):
         setattr(tc.config.risk_config, 'max_trade_size', 1)
-    
+
     # Override methods to avoid real async calls
     monkeypatch.setattr(tc, "execute_trade", dummy_execute_trade.__get__(tc, TradingCore))
     monkeypatch.setattr(tc, "get_current_price", dummy_get_current_price.__get__(tc, TradingCore))
-    
+
     # Initialize price_data dict for our trading pair
     tc.price_data = {'BTC-USD': []}
     tc.last_trade = {}
@@ -93,3 +112,46 @@ async def test_sma_crossover_strategy_no_signal(trading_core_instance, monkeypat
     await trading_core_instance.run_moving_average_crossover_strategy(trading_pair)
     # No trade should be executed when there is no clear crossover
     assert trading_core_instance.last_trade == {}
+
+@pytest.mark.asyncio
+async def test_execute_trade_invalid_trading_pair(trading_core_instance):
+    """Test that execute_trade raises ConfigurationError for an invalid trading pair."""
+    with pytest.raises(ConfigurationError) as exc_info:
+        await trading_core_instance.execute_trade("INVALID-PAIR", "buy", 0.01, 100)
+    assert "Invalid trading pair" in str(exc_info.value)
+
+@pytest.mark.asyncio
+async def test_get_current_price_error(trading_core_instance, monkeypatch):
+    """Test that get_current_price raises TradingException when an error occurs."""
+    async def mock_get_current_price(self, trading_pair: str):
+        raise TradingException("Error fetching current price")
+    
+    monkeypatch.setattr(trading_core_instance, "get_current_price", mock_get_current_price.__get__(trading_core_instance, TradingCore))
+    
+    with pytest.raises(TradingException) as exc_info:
+        await trading_core_instance.get_current_price("BTC-USD")
+    assert "Error fetching current price" in str(exc_info.value)
+
+@pytest.mark.asyncio
+async def test_run_rsi_strategy_error(trading_core_instance, monkeypatch):
+    """Test that run_rsi_strategy raises TradingException when an error occurs."""
+    async def mock_run_rsi_strategy(self, trading_pair: str):
+        raise TradingException("Error running RSI strategy")
+    
+    monkeypatch.setattr(trading_core_instance, "run_rsi_strategy", mock_run_rsi_strategy.__get__(trading_core_instance, TradingCore))
+    
+    with pytest.raises(TradingException) as exc_info:
+        await trading_core_instance.run_rsi_strategy("BTC-USD")
+    assert "Error running RSI strategy" in str(exc_info.value)
+
+@pytest.mark.asyncio
+async def test_run_moving_average_crossover_strategy_error(trading_core_instance, monkeypatch):
+    """Test that run_moving_average_crossover_strategy raises TradingException when an error occurs."""
+    async def mock_run_moving_average_crossover_strategy(self, trading_pair: str):
+        raise TradingException("Error running moving average crossover strategy")
+    
+    monkeypatch.setattr(trading_core_instance, "run_moving_average_crossover_strategy", mock_run_moving_average_crossover_strategy.__get__(trading_core_instance, TradingCore))
+    
+    with pytest.raises(TradingException) as exc_info:
+        await trading_core_instance.run_moving_average_crossover_strategy("BTC-USD")
+    assert "Error running moving average crossover strategy" in str(exc_info.value)

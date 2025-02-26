@@ -66,7 +66,7 @@ def test_risk_config_creation():
     risk_config = RiskConfig.from_dict(data)
     
     assert risk_config.max_position_size == Decimal('5.0')
-    assert risk_config.stop_loss_pct == 0.05
+    assert abs(risk_config.stop_loss_pct - 0.05) < 1e-9
     assert risk_config.max_daily_loss == Decimal('500.0')
     assert risk_config.max_open_orders == 5
 
@@ -75,7 +75,7 @@ def test_risk_config_defaults():
     risk_config = RiskConfig.from_dict({})
     
     assert risk_config.max_position_size == Decimal('5.0')
-    assert risk_config.stop_loss_pct == 0.05
+    assert abs(risk_config.stop_loss_pct - 0.05) < 1e-9
     assert risk_config.max_daily_loss == Decimal('500.0')
     assert risk_config.max_open_orders == 5
 
@@ -177,7 +177,7 @@ def test_get_risk_params(config_file_path, valid_config_data):
     
     assert isinstance(risk_params, RiskConfig)
     assert risk_params.max_position_size == Decimal('5.0')
-    assert risk_params.stop_loss_pct == 0.05
+    assert abs(risk_params.stop_loss_pct - 0.05) < 1e-9
 
 def test_update_config(config_file_path, valid_config_data):
     """Test configuration update functionality."""

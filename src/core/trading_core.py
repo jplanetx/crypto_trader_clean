@@ -12,7 +12,7 @@ import logging
 import asyncio
 from typing import Dict, Any, Optional, List, Union
 from decimal import Decimal
-from datetime import datetime
+from datetime import datetime, timezone
 import os
 import numpy as np
 import pandas as pd
@@ -109,7 +109,7 @@ class TradingCore:
             'trades': 0,
             'volume': Decimal('0'),
             'pnl': Decimal('0'),
-            'last_reset': datetime.utcnow().isoformat()
+            'last_reset': datetime.now(timezone.utc).isoformat()
         }
         self.is_running: bool = False
         self.streaming_task: Optional[asyncio.Task[None]] = None
@@ -307,7 +307,6 @@ class TradingCore:
             TradingException: If state update fails
         """
         try:
-            trading_pair = trade_result['trading_pair']
             size = Decimal(trade_result['size'])
             price = Decimal(trade_result['price'])
             
@@ -319,7 +318,7 @@ class TradingCore:
             # Track active trade
             self.active_trades[trade_result['order_id']] = {
                 **trade_result,
-                'timestamp': datetime.utcnow().isoformat()
+                'timestamp': datetime.now(timezone.utc).isoformat()
             }
             
             logger.debug(f"Trading state updated - Trades: {self.daily_stats['trades']}, "

@@ -154,8 +154,8 @@ def cleanup():
     else:
         print("No temporary files or directories to clean up.")
 
-def main():
-    """Main entry point."""
+def parse_arguments() -> argparse.Namespace:
+    """Parse command line arguments."""
     parser = argparse.ArgumentParser(
         description='Verify thread management system state'
     )
@@ -190,7 +190,61 @@ def main():
         action='store_true',
         help='Clean up temporary files and directories'
     )
-    args = parser.parse_args()
+    return parser.parse_args()
+
+def run_all_checks(args: argparse.Namespace) -> None:
+    """Run all verification checks."""
+    print("Running all verification checks...")
+    results_dirs = check_directories()
+    if results_dirs["status"] != "clean" or not results_dirs["no_duplicates"]:
+        logging.error("Directory check failed:")
+        for issue in results_dirs["issues"]:
+            logging.error(f"  - {issue}")
+        sys.exit(1)
+    else:
+        logging.info("Directory structure verified successfully")
+    results_env = check_environment()
+    if not all([results_env["venv_active"], results_env["pythonpath_valid"]]):
+        logging.error("Environment check failed:")
+        for issue in results_env["issues"]:
+            logging.error(f"  - {issue}")
+        sys.exit(1)
+    else:
+        logging.info("Environment verified successfully")
+    meets_threshold, _ = check_coverage(args.coverage_threshold)
+    if not meets_threshold:
+        sys.exit(1)
+    sys.exit(0)
+
+def check_directories_and_exit() -> None:
+    """Check directories and exit if there are issues."""
+    results = check_directories()
+    if results["status"] != "clean" or not results["no_duplicates"]:
+        logging.error("Directory check failed:")
+        for issue in results["issues"]:
+            logging.error(f"  - {issue}")
+        sys.exit(1)
+    logging.info("Directory structure verified successfully")
+
+def check_environment_and_exit() -> None:
+    """Check environment and exit if there are issues."""
+    results = check_environment()
+    if not all([results["venv_active"], results["pythonpath_valid"]]):
+        logging.error("Environment check failed:")
+        for issue in results["issues"]:
+            logging.error(f"  - {issue}")
+        sys.exit(1)
+    logging.info("Environment verified successfully")
+
+def check_coverage_and_exit(threshold: float) -> None:
+    """Check test coverage and exit if it does not meet the threshold."""
+    meets_threshold, _ = check_coverage(threshold)
+    if not meets_threshold:
+        sys.exit(1)
+
+def main():
+    """Main entry point."""
+    args = parse_arguments()
     
     setup_logging()
     
@@ -198,50 +252,16 @@ def main():
         sys.exit(1)
     
     if args.check_all:
-        print("Running all verification checks...")
-        results_dirs = check_directories()
-        if results_dirs["status"] != "clean" or not results_dirs["no_duplicates"]:
-            logging.error("Directory check failed:")
-            for issue in results_dirs["issues"]:
-                logging.error(f"  - {issue}")
-            sys.exit(1)
-        else:
-            logging.info("Directory structure verified successfully")
-        results_env = check_environment()
-        if not all([results_env["venv_active"], results_env["pythonpath_valid"]]):
-            logging.error("Environment check failed:")
-            for issue in results_env["issues"]:
-                logging.error(f"  - {issue}")
-            sys.exit(1)
-        else:
-            logging.info("Environment verified successfully")
-        meets_threshold, _ = check_coverage(args.coverage_threshold)
-        if not meets_threshold:
-            sys.exit(1)
-        sys.exit(0)
+        run_all_checks(args)
     
     if args.check_dirs:
-        results = check_directories()
-        if results["status"] != "clean" or not results["no_duplicates"]:
-            logging.error("Directory check failed:")
-            for issue in results["issues"]:
-                logging.error(f"  - {issue}")
-            sys.exit(1)
-        logging.info("Directory structure verified successfully")
+        check_directories_and_exit()
         
     if args.check_env:
-        results = check_environment()
-        if not all([results["venv_active"], results["pythonpath_valid"]]):
-            logging.error("Environment check failed:")
-            for issue in results["issues"]:
-                logging.error(f"  - {issue}")
-            sys.exit(1)
-        logging.info("Environment verified successfully")
+        check_environment_and_exit()
     
     if args.check_coverage:
-        meets_threshold, _ = check_coverage(args.coverage_threshold)
-        if not meets_threshold:
-            sys.exit(1)
+        check_coverage_and_exit(args.coverage_threshold)
     
     if args.cleanup:
         cleanup()

@@ -43,11 +43,11 @@ async def coinbase_stream():
     async def subscribe():
         """Subscribe to the Coinbase stream."""
         try:
-            wsClient = coinbasepro.WebsocketClient(url="wss://ws-feed.exchange.coinbase.com", products=["BTC-USD"], auth=auth_client, channels=["ticker"])
-            wsClient.message_callback = handle_message
-            wsClient.start()
+            ws_client = coinbasepro.WebsocketClient(url="wss://ws-feed.exchange.coinbase.com", products=["BTC-USD"], auth=auth_client, channels=["ticker"])
+            ws_client.message_callback = handle_message
+            ws_client.start()
             await asyncio.sleep(3600)  # Run for 1 hour
-            wsClient.close()
+            ws_client.close()
         except Exception as e:
             logger.error(f"Error connecting to Coinbase: {e}")
 
