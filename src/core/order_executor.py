@@ -17,13 +17,13 @@ from decimal import Decimal
 from typing import Dict, Any, Optional
 from datetime import datetime, timezone
 
-from ..utils.exceptions import (
+from src.utils.exceptions import (
     OrderExecutionError,
     ValidationError,
     PositionError,
     ExchangeError
 )
-import coinbase
+import coinbasepro
 
 # Configure module logger
 logger = logging.getLogger(__name__)
@@ -56,11 +56,11 @@ class CoinbaseExchange:
         self.api_secret = api_secret
         
         try:
-            self.client = coinbase.Coinbase(api_key, api_secret)
-            logger.info("Successfully initialized Coinbase client")
+            self.client = coinbasepro.AuthenticatedClient(api_key, api_secret, "")
+            logger.info("Successfully initialized CoinbasePro client")
         except Exception as e:
-            logger.error(f"Failed to initialize Coinbase client: {e}")
-            raise ExchangeError(f"Failed to initialize Coinbase client: {e}")
+            logger.error(f"Failed to initialize CoinbasePro client: {e}")
+            raise ExchangeError(f"Failed to initialize CoinbasePro client: {e}")
 
     async def buy(self, trading_pair: str, size: float, price: float) -> Dict[str, Any]:
         """
@@ -83,13 +83,12 @@ class CoinbaseExchange:
                 logger.debug("Using test mode - returning dummy order")
                 return {"order_id": "dummy_buy_order"}
                 
-            order = self.client.create_order(
+            order = self.client.place_market_order(
                 product_id=trading_pair,
                 side='buy',
                 size=size,
-                type='market'  # Using market order for simplicity
             )
-            logger.info(f"Buy order placed successfully - Order ID: {order.get('order_id')}")
+            logger.info(f"Buy order placed successfully - Order ID: {order.get('id')}")
             return order
             
         except Exception as e:
@@ -118,13 +117,12 @@ class CoinbaseExchange:
                 logger.debug("Using test mode - returning dummy order")
                 return {"order_id": "dummy_sell_order"}
                 
-            order = self.client.create_order(
+            order = self.client.place_market_order(
                 product_id=trading_pair,
                 side='sell',
                 size=size,
-                type='market'  # Using market order for simplicity
             )
-            logger.info(f"Sell order placed successfully - Order ID: {order.get('order_id')}")
+            logger.info(f"Sell order placed successfully - Order ID: {order.get('id')}")
             return order
             
         except Exception as e:

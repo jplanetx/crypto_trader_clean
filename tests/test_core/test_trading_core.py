@@ -2,8 +2,11 @@ import asyncio
 import pytest
 import json
 from decimal import Decimal
+from unittest.mock import patch, AsyncMock
 from src.core.trading_core import TradingCore
+from src.core.order_executor import CoinbaseExchange
 from src.utils.exceptions import TradingException, ConfigurationError
+import coinbase
 
 # Dummy implementations to override actual trading behavior in tests
 async def dummy_execute_trade(self, trading_pair, side, size, price):
@@ -28,48 +31,65 @@ def trading_core_instance(monkeypatch):
             "api_secret": mock_api_credentials['api_secret'],
             "trading_pairs": ["BTC-USD", "ETH-USD"],
             "paper_trading": True,
+            "risk_management": {
+                "max_position_size": 10,
+                "stop_loss_pct": 5,
+                "max_daily_loss": 1000,
+                "max_open_orders": 5
+            },
+            "order_settings": {
+                "default_size": 1,
+                "min_trade_interval": 60,
+                "max_slippage_pct": 0.5
+            },
+            "logging": {
+                "level": "INFO",
+                "file_path": "./logs/trader.log",
+                "rotation": "1 MB",
+                "retention": "7 days"
+            },
+            "retry_settings": {
+                "max_attempts": 3,
+                "initial_delay": 1,
+                "max_delay": 10,
+                "backoff_factor": 2
+            },
             "strategy_config": {
+                "ma_window": 20,
+                "rsi_window": 14,
+                "rsi_oversold": 30,
+                "rsi_overbought": 70,
                 "short_window": 3,
                 "long_window": 5
             },
-            "risk_config": {
-                "max_trade_size": 1
-            }
+            "config_version": 1
         }, f)
+
+    # Mock Coinbase client and create_order method
+    mock_coinbase_client = AsyncMock()
+    mock_create_order = AsyncMock(return_value={"order_id": "mock_order_id"})
+    mock_create_order = AsyncMock(return_value={"id": "mock_order_id"})
+
+    # Patch the actual create_order method
+    monkeypatch.setattr("src.core.order_executor.CoinbaseExchange.buy", mock_create_order)
+    monkeypatch.setattr("src.core.order_executor.CoinbaseExchange.sell", mock_create_order)
 
     # Create an instance of TradingCore with the updated config path
     tc = TradingCore(config_path='config/config.json')
+    
+    # Mock the execute_trade and get_current_price methods
+    tc.last_trade = {}
+    tc.fake_current_price = 0
+    async def dummy_execute_trade(self, trading_pair, side, size, price):
+        if trading_pair not in ["BTC-USD", "ETH-USD"]:
+            raise ConfigurationError(f"Invalid trading pair: {trading_pair}")
+        self.last_trade = {'trading_pair': trading_pair, 'side': side, 'size': size, 'price': price}
+        return {'status': 'filled', 'order_id': f'{side}_order', 'trading_pair': trading_pair, 'size': size, 'price': price}
 
-    # Set the API credentials directly in the TradingCore instance
-    tc.config_manager.config.api_key = mock_api_credentials['api_key']
-    tc.config_manager.config.api_secret = mock_api_credentials['api_secret']
-
-    # Set the API credentials directly in the TradingCore instance
-    tc.config_manager.config.api_key = mock_api_credentials['api_key']
-    tc.config_manager.config.api_secret = mock_api_credentials['api_secret']
-
-    # Debug: Print API credentials set in config
-    print(f"Config API Key: {tc.config_manager.config.api_key}")
-    print(f"Config API Secret: {tc.config_manager.config.api_secret}")
-
-    # Ensure the configuration is loaded correctly
-    tc.config_manager.load_config()
-
-    # Set up a dummy config for testing SMA strategy
-    tc.config.strategy_config['short_window'] = 3
-    tc.config.strategy_config['long_window'] = 5
-
-    # Set a risk config attribute for testing; add max_trade_size if not present
-    if not hasattr(tc.config.risk_config, 'max_trade_size'):
-        setattr(tc.config.risk_config, 'max_trade_size', 1)
-
-    # Override methods to avoid real async calls
+    async def dummy_get_current_price(self, trading_pair: str):
+        return self.fake_current_price
     monkeypatch.setattr(tc, "execute_trade", dummy_execute_trade.__get__(tc, TradingCore))
     monkeypatch.setattr(tc, "get_current_price", dummy_get_current_price.__get__(tc, TradingCore))
-
-    # Initialize price_data dict for our trading pair
-    tc.price_data = {'BTC-USD': []}
-    tc.last_trade = {}
     return tc
 
 @pytest.mark.asyncio

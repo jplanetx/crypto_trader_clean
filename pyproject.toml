@@ -33,7 +33,7 @@ dev = [
 
 [tool.pytest.ini_options]
 minversion = "7.0"
-addopts = "-ra -q --asyncio-mode=strict"
+addopts = "-ra -q --asyncio-mode=strict --cov=src"
 testpaths = ["tests"]
 python_files = ["test_*.py"]
 pythonpath = ["."]

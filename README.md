@@ -1,88 +1,47 @@
-# CryptoTrader Clean
+# Project README
 
-A streamlined cryptocurrency trading system for personal use. Built with a focus on reliability and ease of use.
+## Overview
+This project is organized to support modular development with an integrated thread management system that streamlines our workflow.
 
-## Quick Start
+## Thread Management System
+The thread management system enables developers to manage tasks in structured threads:
 
-1. Make sure Python 3.8 or higher is installed
-2. Double-click `start_trading.bat` to run the trading system
-3. Check the `logs` directory for trading activity
+- **Archiving a Thread:**  
+  To mark a thread as complete, execute:
+  ```
+  python scripts/thread_manager.py --complete <THREAD_ID>
+  ```
 
-## Configuration
+- **Starting a New Thread:**  
+  To initialize a new thread, execute:
+  ```
+  python scripts/thread_manager.py --init <THREAD_ID>
+  ```
 
-Edit `config/config.json` to set your preferences:
+### Continuation Threads
+For work that extends an existing thread, continue with a new thread identifier. For example, additional work from `THREAD_005` is continued as `THREAD_005_A`:
+- Complete the original thread:
+  ```
+  python scripts/thread_manager.py --complete THREAD_005
+  ```
+- Initialize the continuation thread:
+  ```
+  python scripts/thread_manager.py --init THREAD_005_A
+  ```
 
-```json
-{
-    "trading_pairs": ["BTC-USD", "ETH-USD"],
-    "risk_management": {
-        "max_position_size": 5.0,
-        "stop_loss_pct": 0.05,
-        "max_daily_loss": 500.0,
-        "max_open_orders": 5
-    },
-    "paper_trading": true,
-    "api_key": "",
-    "api_secret": ""
-}
+## Documentation
+- **THREAD_START_GUIDE.md:** Contains detailed instructions on thread management.
+- **GETTING_STARTED.md:** Provides guidance on project setup, including thread management commands and verification procedures.
+
+## Development Workflow
+Before integrating changes, run the verification scripts to ensure all tests and checks pass:
+```
+python scripts/verify_thread.py --check-all
+python scripts/verify_thread.py --check-coverage
+python scripts/verify_thread.py --cleanup
 ```
 
-## Features
+## Additional Notes
+Keep the configuration and documentation files updated as the project evolves. Ensure that any updates in thread management, dependency versions, or verification procedures are reflected promptly in the documentation.
 
-- Asynchronous order execution
-- Automatic position tracking
-- Risk management controls
-- Detailed logging
-- Paper trading mode for testing
-
-## Project Structure
-
-```
-crypto_trader_clean/
-├── src/
-│   ├── core/                 # Core trading components
-│   │   ├── order_executor.py # Order execution
-│   │   ├── trading_core.py   # Main trading logic
-│   │   └── config_manager.py # Configuration
-│   └── utils/
-│       └── exceptions.py     # Custom exceptions
-├── config/
-│   └── config.json          # Trading configuration
-├── logs/                    # Trading logs
-└── start_trading.bat       # Easy startup script
-```
-
-## Monitoring
-
-- Check `logs/trading_YYYYMMDD.log` for detailed activity
-- Current positions and stats are displayed in the console
-- Press Ctrl+C to safely stop trading
-
-## Testing
-
-Run tests to verify everything is working:
-
-```bash
-# Activate virtual environment
-venv\Scripts\activate
-
-# Run tests
-pytest tests/
-```
-
-## Development
-
-The main files to modify for customization:
-- `config/config.json` - Trading parameters
-- `src/core/trading_core.py` - Core trading logic
-- `run_trader.py` - Main execution loop
-
-### Thread Management
-
-This project uses a thread management system to organize development tasks and maintain project quality. For developers contributing to this project:
-
-- Refer to `THREAD_START_GUIDE.md` for comprehensive instructions on thread initialization and management
-- Follow the verification processes to ensure code quality
-- Run verification commands (`--check-all`, `--check-coverage`, `--cleanup`) after making changes
-
-See `GETTING_STARTED.md` for initial setup instructions.
+Happy coding!
