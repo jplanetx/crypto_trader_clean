@@ -1,0 +1,21 @@
+{
+  "thread_id": "THREAD_008",
+  "title": "Test Coverage Improvement",
+  "objectives": "Increase the project's test coverage to at least 85% overall (and 95% for core modules) by expanding unit and integration tests.",
+  "deliverables": [
+    "New unit tests for critical components including trading_core, coinbase_streaming, and config_validator.",
+    "Integration tests simulating end-to-end functionality using mocks for external APIs.",
+    "A comprehensive test coverage report generated via pytest-cov.",
+    "Updated documentation outlining the testing strategy."
+  ],
+  "requirements": "Tests must isolate external dependencies using mocks and produce a reliable coverage report. Code changes should adhere to the project's coding standards and achieve the target coverage thresholds.",
+  "tasks": [
+    "Identify core modules with insufficient tests (e.g., src/core/trading_core.py, src/core/coinbase_streaming.py, src/core/config_validator.py).",
+    "Develop unit tests for each targeted module covering normal operations, error handling, and boundary cases.",
+    "Add integration tests in a new suite (e.g., tests/test_integration/) to simulate full workflows with external dependencies mocked.",
+    "Configure pytest-cov to generate detailed coverage reports and update documentation accordingly."
+  ],
+  "status": "initialized",
+  "notes": "This thread is critical to ensure reliability and robustness of the application before further developments.",
+  "starting_prompt": "Thread: THREAD_008 – Test Coverage Improvement\n\nObjective:\n  Increase overall test coverage to at least 85% (with 95% for core components) by adding comprehensive unit and integration tests.\n\nDeliverables:\n  - New unit tests for key modules (trading_core, coinbase_streaming, config_validator, etc.).\n  - Integration tests with external dependencies mocked.\n  - A detailed test coverage report generated via pytest-cov.\n  - Updated testing strategy documentation.\n\nInstructions to AI:\n  1. Review docs/ai_task_guide.md for project context and guidelines.\n  2. Use apply_diff for modifications to existing test files and write_to_file for creating new test files if necessary.\n  3. Validate changes by running the test suite and ensuring the coverage increases.\n\nPlease implement these changes."
+}

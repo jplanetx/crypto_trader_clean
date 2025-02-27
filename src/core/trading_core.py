@@ -65,14 +65,14 @@ class TradingCore:
             if exchange_interface:
                 self.exchange_interface = exchange_interface
             else:
-                if not all([self.config.api_key, self.config.api_secret]):
+                if not all([self.config.api_key, self.config.private_key]):
                     error_msg = "API credentials not found in configuration"
                     logger.error(error_msg)
                     raise ConfigurationError(error_msg)
                     
                 self.exchange_interface = CoinbaseExchange(
                     api_key=self.config.api_key,
-                    api_secret=self.config.api_secret
+                    api_secret=self.config.private_key
                 )
 
             # Initialize order executor
@@ -84,7 +84,7 @@ class TradingCore:
             # Initialize Coinbase streaming
             self.coinbase_streaming = CoinbaseStreaming(
                 api_key=self.config.api_key,
-                api_secret=self.config.api_secret,
+                private_key=self.config.private_key,
                 product_ids=self.config.trading_pairs,
                 channels=["ticker"]
             )
@@ -113,6 +113,10 @@ class TradingCore:
         }
         self.is_running: bool = False
         self.streaming_task: Optional[asyncio.Task[None]] = None
+
+    def get_trading_pairs(self) -> List[str]:
+        """Get the configured trading pairs."""
+        return self.config.trading_pairs
 
     async def initialize(self) -> None:
         """
@@ -172,11 +176,10 @@ class TradingCore:
             raise ConfigurationError(error_msg)
 
         if not self.config_manager.is_paper_trading():
-            if not all([self.config.api_key, self.config.api_secret]):
+            if not all([self.config.api_key, self.config.private_key]):
                 error_msg = "API credentials required for live trading"
                 logger.error(error_msg)
                 raise ConfigurationError(error_msg)
-                
         logger.debug("Trading environment validation successful")
 
     async def _start_coinbase_streaming(self) -> None:

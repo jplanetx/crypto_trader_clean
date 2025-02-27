@@ -1,0 +1,28 @@
+{
+  "thread_id": "THREAD_6_A",
+  "title": "Configuration Fix: Add risk_management",
+  "objectives": "Update config/config.json to include the required 'risk_management' key with its necessary properties.",
+  "deliverables": [
+    "Modify config/config.json to include a 'risk_management' section with the properties: max_position_size, stop_loss_pct, max_daily_loss, and max_open_orders.",
+    "Ensure that the test fixtures (e.g., in tests/test_core/test_trading_core.py) are updated to use the correct configuration.",
+    "Update any relevant documentation to reflect the change."
+  ],
+  "requirements": "The configuration must conform to the schema defined in config/config_schema.json, and tests must pass using the updated configuration.",
+  "tasks": [
+    "Edit config/config.json to add the 'risk_management' key, for example:",
+    "  {",
+    "    ...",
+    "    \"risk_management\": {",
+    "      \"max_position_size\": 10,",
+    "      \"stop_loss_pct\": 5,",
+    "      \"max_daily_loss\": 1000,",
+    "      \"max_open_orders\": 5",
+    "    },",
+    "    ...",
+    "  }",
+    "Update test setups and fixtures accordingly."
+  ],
+  "status": "completed",
+  "notes": "This thread should be addressed first, as many test cases and application functionality depend on a valid configuration.",
+  "starting_prompt": "Thread: THREAD_6_A – Configuration Fix: Add risk_management\n\nObjective:\n  Update config/config.json to include the required 'risk_management' key with properties: max_position_size, stop_loss_pct, max_daily_loss, max_open_orders.\n\nDeliverables:\n  - Modified config/config.json with new risk_management section.\n  - Updated test fixtures to load the new configuration.\n  - Updated documentation describing the configuration change.\n\nInstructions to AI:\n  1. Review docs/ai_task_guide.md for required context.\n  2. Use apply_diff to update config/config.json.\n  3. Ensure updated tests pass using the new configuration.\n\nPlease implement these changes."
+}

@@ -29,28 +29,28 @@ class CoinbaseStreaming:
     processing of real-time market data streams.
     """
     
-    def __init__(self, api_key: str, api_secret: str, product_ids: List[str], channels: List[str]):
+    def __init__(self, api_key: str, private_key: str, product_ids: List[str], channels: List[str]):
         """
         Initialize the CoinbaseStreaming instance.
         
         Args:
             api_key (str): Coinbase API key
-            api_secret (str): Coinbase API secret
+            private_key (str): Coinbase API private key
             product_ids (List[str]): List of product IDs to subscribe to
             channels (List[str]): List of channels to subscribe to
             
         Raises:
             StreamingError: If initialization parameters are invalid
         """
-        if not api_key or not api_secret:
-            raise StreamingError("API key and secret are required")
+        if not api_key or not private_key:
+            raise StreamingError("API key and private key are required")
         if not product_ids:
             raise StreamingError("At least one product ID is required")
         if not channels:
             raise StreamingError("At least one channel is required")
             
         self.api_key = api_key
-        self.api_secret = api_secret
+        self.private_key = private_key
         self.product_ids = product_ids
         self.channels = channels
         self.websocket: Optional[websockets.WebSocketClientProtocol] = None
@@ -91,9 +91,12 @@ class CoinbaseStreaming:
         """
         try:
             timestamp = str(int(time.time()))
-            message = timestamp + 'GET' + '/users/self/verify'
+            method = 'GET'
+            request_path = '/api/v3/brokerage/accounts'
+            body = ''
+            message = timestamp + method + request_path + body
             signature = hmac.new(
-                self.api_secret.encode('utf-8'),
+                self.private_key.encode('utf-8'),
                 message.encode('utf-8'),
                 digestmod=hashlib.sha256
             ).digest()
@@ -304,3 +307,12 @@ class CoinbaseStreaming:
                 logger.info("WebSocket connection closed gracefully")
             except Exception as e:
                 logger.error(f"Error closing WebSocket connection: {e}")
+
+    def get_current_price(self, trading_pair: str) -> float:
+        """
+        Get the current price for a given trading pair.
+        """
+        if trading_pair in self.price_data:
+            return self.price_data[trading_pair][-1]
+        else:
+            return 0

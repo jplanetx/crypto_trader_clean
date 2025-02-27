@@ -28,13 +28,13 @@ async def coinbase_stream():
     """Connect to Coinbase and stream real-time data."""
     config_manager = ConfigManager()
     api_key = config_manager.coinbase_api_key
-    api_secret = config_manager.coinbase_api_secret
+    private_key = config_manager.coinbase_private_key
 
-    if not api_key or not api_secret:
-        logger.error("Coinbase API key and secret must be set in .env file")
+    if not api_key or not private_key:
+        logger.error("Coinbase API key and private key must be set in .env file")
         return
 
-    auth_client = coinbasepro.AuthenticatedClient(api_key, api_secret, os.getenv("COINBASE_API_PASSPHRASE"))
+    auth_client = coinbasepro.AuthenticatedClient(api_key, private_key, "")
 
     async def handle_message(message):
         """Process incoming messages from the Coinbase stream."""
@@ -64,10 +64,10 @@ async def run_trading():
         # Start Coinbase stream
         asyncio.create_task(coinbase_stream())
 
-        while trading.is_active():
+        while trading.is_running:
             try:
                 # Get current positions
-                for pair in trading.get_trading_pairs():
+                for pair in trading.config.trading_pairs:
                     position = await trading.get_position(pair)
                     logger.info(f"Current position for {pair}: {position}")
 

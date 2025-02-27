@@ -62,6 +62,14 @@ class CoinbaseExchange:
             logger.error(f"Failed to initialize CoinbasePro client: {e}")
             raise ExchangeError(f"Failed to initialize CoinbasePro client: {e}")
 
+    async def connect(self) -> None:
+        """
+        Connect to the Coinbase API.
+        """
+        logger.info("Connecting to Coinbase API...")
+        # No explicit connection needed for coinbasepro library
+        logger.info("Coinbase API connection established")
+
     async def buy(self, trading_pair: str, size: float, price: float) -> Dict[str, Any]:
         """
         Place a buy order on Coinbase Advanced Trade API.

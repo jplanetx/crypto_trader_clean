@@ -50,6 +50,7 @@ coverage.xml
 
 # Trading specific
 cdp_api_key.json
+cdp_api_key_2.json
 config/personal_config.json
 *.secret
 *.key

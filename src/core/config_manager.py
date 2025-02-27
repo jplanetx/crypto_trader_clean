@@ -84,14 +84,14 @@ class TradingConfig:
         risk_config (RiskConfig): Risk management configuration
         paper_trading (bool): Whether paper trading is enabled
         api_key (Optional[str]): Coinbase API key
-        api_secret (Optional[str]): Coinbase API secret
+        private_key (Optional[str]): Coinbase API private key
         strategy_config (Dict[str, Any]): Strategy-specific configuration
     """
     trading_pairs: List[str]
     risk_config: RiskConfig
     paper_trading: bool
     api_key: Optional[str]
-    api_secret: Optional[str]
+    private_key: Optional[str]
     strategy_config: Dict[str, Any]
 
     @classmethod
@@ -132,7 +132,7 @@ class TradingConfig:
                 risk_config=RiskConfig.from_dict(data.get('risk_management', {})),
                 paper_trading=bool(data.get('paper_trading', True)),
                 api_key=str(api_key) if api_key else None,
-                api_secret=str(api_secret) if api_secret else None,
+                private_key=str(data.get('private_key')) if data.get('private_key') else None,
                 strategy_config=strategy_config
             )
             
@@ -168,7 +168,7 @@ class ConfigManager:
         self.config_path = config_path or os.getenv('TRADING_CONFIG_PATH', 'config/config.json')
         self.schema_path = schema_path
         self.coinbase_api_key = os.getenv("COINBASE_API_KEY")
-        self.coinbase_api_secret = os.getenv("COINBASE_API_SECRET")
+        self.coinbase_private_key = os.getenv("COINBASE_PRIVATE_KEY")
         self._config: Optional[TradingConfig] = None
         
         logger.info(f"Initializing ConfigManager with config path: {self.config_path}")
@@ -248,7 +248,7 @@ class ConfigManager:
             },
             'paper_trading': True,
             'api_key': self.coinbase_api_key,
-            'api_secret': self.coinbase_api_secret,
+            'api_secret': self.coinbase_private_key,
             'strategy': {
                 'ma_window': 20
             }

@@ -36,7 +36,7 @@
     "api_key": {
       "type": "string"
     },
-    "api_secret": {
+    "private_key": {
       "type": "string"
     },
     "order_settings": {
@@ -147,6 +147,7 @@
     "logging",
     "retry_settings",
     "strategy_config",
-    "config_version"
+    "config_version",
+    "private_key"
   ]
 }

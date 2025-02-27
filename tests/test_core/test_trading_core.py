@@ -203,13 +203,17 @@ async def test_trading_core_no_api_credentials():
             json.dump(original_config, f)
 
 @pytest.mark.asyncio
-async def test_trading_core_no_trading_pairs(trading_core_instance, monkeypatch):
+async def test_trading_core_no_trading_pairs(monkeypatch):
     """Test that TradingCore raises ConfigurationError if no trading pairs are configured."""
-    async def mock_load_config(self):
-        config = self.config_manager.load_config()
-        config.trading_pairs = []
-        return config
-
-    monkeypatch.setattr(trading_core_instance.config_manager, "load_config", mock_load_config.__get__(trading_core_instance.config_manager, trading_core_instance.config_manager.__class__))
-assert "API credentials not found in configuration" in str(exc_info.value)
-
+    import json
+    from src.core.trading_core import TradingCore
+    # Backup the original configuration
+    with open('config/config.json', 'r') as f:
+        original_config = json.load(f)
+    # Update config to have no trading pairs
+    original_config['trading_pairs'] = []
+    with open('config/config.json', 'w') as f:
+        json.dump(original_config, f)
+    with pytest.raises(ConfigurationError) as exc_info:
+        TradingCore(config_path='config/config.json')
+    assert "At least one product ID is required" in str(exc_info.value)
