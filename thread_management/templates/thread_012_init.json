@@ -1,0 +1,12 @@
+{
+  "thread_number": "THREAD_012",
+  "title": "Implement Missing Methods",
+  "objectives": "Add and test the missing methods 'get_current_price' and 'get_position' in the appropriate modules to ensure they integrate with the updated client infrastructure.",
+  "deliverables": "Fully functional implementations of 'get_current_price' and 'get_position' along with unit tests that verify their behavior.",
+  "starter_prompt": "Identify the appropriate module(s) (likely in src/core) and implement the 'get_current_price' and 'get_position' methods. Create basic unit tests to ensure these methods return expected values.",
+  "dependencies": [
+    "THREAD_011",
+    "Claude SOnnet 3.7 Chat for Auth Fix.md"
+  ],
+  "notes": "Ensure that the implementations align with the new API structure and interact correctly with the refactored WebsocketClient and RESTClient."
+}

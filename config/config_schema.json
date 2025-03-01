@@ -36,6 +36,9 @@
     "api_key": {
       "type": "string"
     },
+    "api_secret": {
+      "type": "string"
+    },
     "private_key": {
       "type": "string"
     },
@@ -148,6 +151,7 @@
     "retry_settings",
     "strategy_config",
     "config_version",
-    "private_key"
+    "private_key",
+    "api_secret"
   ]
 }

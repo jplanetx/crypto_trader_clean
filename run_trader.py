@@ -8,8 +8,9 @@ from pathlib import Path
 from datetime import datetime
 import os
 from dotenv import load_dotenv
-import coinbasepro
-
+#import coinbasepro # Removed old import
+from coinbase.rest import RESTClient
+from coinbase.websocket import WebsocketClient
 from src.core import TradingCore
 from src.core.config_manager import ConfigManager
 
@@ -34,7 +35,8 @@ async def coinbase_stream():
         logger.error("Coinbase API key and private key must be set in .env file")
         return
 
-    auth_client = coinbasepro.AuthenticatedClient(api_key, private_key, "")
+    #auth_client = coinbasepro.AuthenticatedClient(api_key, private_key, "") # Removed old client
+    rest_client = RESTClient(api_key=api_key, private_key=private_key)
 
     async def handle_message(message):
         """Process incoming messages from the Coinbase stream."""
@@ -43,9 +45,16 @@ async def coinbase_stream():
     async def subscribe():
         """Subscribe to the Coinbase stream."""
         try:
-            ws_client = coinbasepro.WebsocketClient(url="wss://ws-feed.exchange.coinbase.com", products=["BTC-USD"], auth=auth_client, channels=["ticker"])
+            ws_client = WebsocketClient(key=api_key, secret=private_key)
             ws_client.message_callback = handle_message
             ws_client.start()
+            # Subscribe to channels
+            subscribe_message = {
+                "type": "subscribe",
+                "product_ids": ["BTC-USD"],
+                "channels": ["ticker"],
+            }
+            await ws_client.send(json.dumps(subscribe_message))
             await asyncio.sleep(3600)  # Run for 1 hour
             ws_client.close()
         except Exception as e:

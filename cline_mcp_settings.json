@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "github.com/browserbase/mcp-server-browserbase": {
+      "command": "node",
+      "args": ["dist/index.js"],
+      "cwd": "browserbase-mcp-server/browserbase",
+      "env": {},
+      "disabled": false,
+      "autoApprove": []
+    }
+  }
+}

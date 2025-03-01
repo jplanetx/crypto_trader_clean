@@ -576,3 +576,43 @@ class TradingCore:
             
         except Exception as e:
             logger.error(f"Error during shutdown: {e}")
+
+    async def get_position(self, symbol: str) -> Dict[str, Any]:
+        """
+        Get the current position for a specific trading pair.
+        
+        Args:
+            symbol (str): The trading pair symbol (e.g., 'BTC-USD')
+            
+        Returns:
+            dict: Position information including size, entry price, etc.
+        """
+        try:
+            # Example implementation
+            accounts = await self.exchange_interface.get_accounts()
+            position = {
+                'size': 0,
+                'entry_price': 0,
+                'current_value': 0
+            }
+            
+            # Parse the symbol to get the base currency
+            base_currency = symbol.split('-')[0]
+            
+            # Find the account for this currency
+            for account in accounts:
+                if account['currency'] == base_currency:
+                    position['size'] = float(account['balance'])
+                    #if position['size'] > 0 and 'avg_entry_price' in account: #avg_entry_price is not available in the response
+                    #    position['entry_price'] = float(account['avg_entry_price'])
+                    position['current_value'] = position['size'] * await self.get_current_price(symbol)
+            
+            return position
+        except Exception as e:
+            logger.error(f"Failed to get position for {symbol}: {e}")
+            return {
+                'size': 0,
+                'entry_price': 0,
+                'current_value': 0,
+                'error': str(e)
+            }

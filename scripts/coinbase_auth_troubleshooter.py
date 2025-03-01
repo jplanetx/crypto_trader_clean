@@ -11,11 +11,22 @@ def setup_coinbase_auth():
     Set up and test the Coinbase API authentication.
     Returns the authenticated client if successful.
     """
-    # Your API credentials - you should store these securely, not in code
-    api_key = "YOUR_API_KEY"
-    api_secret = "YOUR_API_SECRET"
-    api_passphrase = "YOUR_API_PASSPHRASE"  # If required
-    
+    # Load API credentials from file
+    try:
+        with open("config/cdp_api_key_2.json", "r") as f:
+            credentials = json.load(f)
+        api_key = credentials["name"]
+        api_secret = credentials["privateKey"]
+    except FileNotFoundError:
+        print("Error: config/cdp_api_key_2.json not found.")
+        return None
+    except KeyError as e:
+        print(f"Error: Missing key in config file: {e}")
+        return None
+    except json.JSONDecodeError:
+        print("Error: Invalid JSON in config/cdp_api_key_2.json")
+        return None
+
     # Test the authentication
     timestamp = str(int(time.time()))
     request_path = '/accounts'
@@ -25,7 +36,7 @@ def setup_coinbase_auth():
     message = timestamp + method + request_path
     
     # Create the signature using HMAC
-    hmac_key = base64.b64decode(api_secret)
+    hmac_key = api_secret.encode('utf-8')
     signature = hmac.new(hmac_key, message.encode('utf-8'), hashlib.sha256)
     signature_b64 = base64.b64encode(signature.digest()).decode('utf-8')
     
@@ -34,7 +45,6 @@ def setup_coinbase_auth():
         'CB-ACCESS-KEY': api_key,
         'CB-ACCESS-SIGN': signature_b64,
         'CB-ACCESS-TIMESTAMP': timestamp,
-        'CB-ACCESS-PASSPHRASE': api_passphrase,  # If required
         'Content-Type': 'application/json'
     }
     

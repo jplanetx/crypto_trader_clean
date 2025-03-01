@@ -7,7 +7,16 @@ from src.core.trading_core import TradingCore
 from src.core.order_executor import CoinbaseExchange
 from src.utils.exceptions import TradingException, ConfigurationError
 import coinbase
+from unittest.mock import patch
 
+@patch('src.core.trading_core.ConfigManager')
+def test_trading_core_initialization(MockConfigManager):
+    """Test TradingCore initialization."""
+    tc = TradingCore(config_path='config/config.json')
+    assert tc is not None
+    assert isinstance(tc.config_manager, MockConfigManager)
+
+@patch('src.core.trading_core.ConfigManager')
 # Dummy implementations to override actual trading behavior in tests
 async def dummy_execute_trade(self, trading_pair, side, size, price):
     self.last_trade = {'trading_pair': trading_pair, 'side': side, 'size': size, 'price': price}
@@ -21,49 +30,54 @@ def trading_core_instance(monkeypatch):
     # Mock API credentials for testing
     mock_api_credentials = {
         "api_key": "mock_api_key",
-        "api_secret": "mock_api_secret",
+        "api_secret": "mock_api_secret"
     }
 
     # Write mock API credentials to the configuration file
     with open('config/config.json', 'w') as f:
-        json.dump({
-            "api_key": mock_api_credentials['api_key'],
-            "api_secret": mock_api_credentials['api_secret'],
-            "trading_pairs": ["BTC-USD", "ETH-USD"],
-            "paper_trading": True,
-            "risk_management": {
-                "max_position_size": 10,
-                "stop_loss_pct": 5,
-                "max_daily_loss": 1000,
-                "max_open_orders": 5
+        json.dump(
+            {
+                "api_key": mock_api_credentials['api_key'],
+                "api_secret": mock_api_credentials['api_secret'],
+                "private_key": "mock_private_key",
+                "trading_pairs": ["BTC-USD", "ETH-USD"],
+                "paper_trading": True,
+                "risk_management": {
+                    "max_position_size": 10,
+                    "stop_loss_pct": 5,
+                    "max_daily_loss": 1000,
+                    "max_open_orders": 5
+                },
+                "order_settings": {
+                    "default_size": 1,
+                    "min_trade_interval": 60,
+                    "max_slippage_pct": 0.5
+                },
+                "logging": {
+                    "level": "INFO",
+                    "file_path": "./logs/trader.log",
+                    "rotation": "1 MB",
+                    "retention": "7 days"
+                },
+                "retry_settings": {
+                    "max_attempts": 3,
+                    "initial_delay": 1,
+                    "max_delay": 10,
+                    "backoff_factor": 2
+                },
+                "strategy_config": {
+                    "ma_window": 20,
+                    "rsi_window": 14,
+                    "rsi_oversold": 30,
+                    "rsi_overbought": 70,
+                    "short_window": 3,
+                    "long_window": 5
+                },
+                "config_version": 1
             },
-            "order_settings": {
-                "default_size": 1,
-                "min_trade_interval": 60,
-                "max_slippage_pct": 0.5
-            },
-            "logging": {
-                "level": "INFO",
-                "file_path": "./logs/trader.log",
-                "rotation": "1 MB",
-                "retention": "7 days"
-            },
-            "retry_settings": {
-                "max_attempts": 3,
-                "initial_delay": 1,
-                "max_delay": 10,
-                "backoff_factor": 2
-            },
-            "strategy_config": {
-                "ma_window": 20,
-                "rsi_window": 14,
-                "rsi_oversold": 30,
-                "rsi_overbought": 70,
-                "short_window": 3,
-                "long_window": 5
-            },
-            "config_version": 1
-        }, f)
+            f,
+            indent=4
+        )
 
     # Mock Coinbase client and create_order method
     mock_coinbase_client = AsyncMock()

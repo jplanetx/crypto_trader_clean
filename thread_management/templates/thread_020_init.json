@@ -1,0 +1,43 @@
+{
+    "thread_id": "THREAD_020",
+    "name": "Completion",
+    "description": "Use the `attempt_completion` tool to present the result.",
+    "start_time": null,
+    "status": "not_started",
+    "prompt": "Use the `attempt_completion` tool to present the result.",
+    "objectives": [
+        "Use the `attempt_completion` tool to present the result."
+    ],
+    "required_components": {
+        "core_files": [],
+        "config_files": [],
+        "test_files": []
+    },
+    "verification_steps": [],
+    "success_criteria": {
+        "coverage_requirements": {
+            "min_coverage": 85,
+            "critical_files": []
+        },
+        "test_requirements": {
+            "unit_tests_passing": true,
+            "integration_tests_passing": true
+        },
+        "isolation_requirements": {
+            "no_external_imports": true,
+            "workspace_clean": true
+        }
+    },
+    "deliverables": [
+        {
+            "name": "Final result presented to the user.",
+            "files": [],
+            "status": "pending"
+        }
+    ],
+    "completion_checklist": [],
+    "error_handling": {},
+    "steps": [
+        "Use the `attempt_completion` tool."
+    ]
+}

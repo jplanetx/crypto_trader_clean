@@ -26,12 +26,13 @@ def test_validate_valid_config():
         },
         "paper_trading": True,
         "api_key": "test_key",
-        "api_secret": "test_secret",
-        "order_settings": {
-            "default_size": 0.01,
-            "min_trade_interval": 60,
-            "max_slippage_pct": 0.01
-        },
+            "api_secret": "test_secret",
+            "private_key": "test_private_key",
+            "order_settings": {
+                "default_size": 0.01,
+                "min_trade_interval": 60,
+                "max_slippage_pct": 0.01
+            },
         "logging": {
             "level": "INFO",
             "file_path": "logs/trading.log",

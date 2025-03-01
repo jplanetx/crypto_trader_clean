@@ -15,6 +15,7 @@ import hmac
 import hashlib
 from typing import List, Dict, Any, Optional
 from base64 import b64encode
+from coinbase_advanced_trade.rest import RESTClient  # Updated to coinbase-advanced-trade library
 from ..utils.exceptions import StreamingError
 
 # Configure the module logger
@@ -55,6 +56,10 @@ class CoinbaseStreaming:
         self.channels = channels
         self.websocket: Optional[websockets.WebSocketClientProtocol] = None
         self.url = "wss://advanced-trade-ws.coinbase.com"
+        self.rest_client = RESTClient(api_key, api_secret=private_key)
+        
+        # Initialize a cache for storing prices.
+        self.prices: Dict[str, float] = {}
         
         logger.info(f"Initialized streaming for products: {product_ids}")
 
@@ -308,11 +313,28 @@ class CoinbaseStreaming:
             except Exception as e:
                 logger.error(f"Error closing WebSocket connection: {e}")
 
-    def get_current_price(self, trading_pair: str) -> float:
+    def get_current_price(self, symbol: str) -> float:
         """
-        Get the current price for a given trading pair.
+        Get the current price for a specific trading pair.
+        
+        Args:
+            symbol (str): The trading pair symbol (e.g., 'BTC-USD')
+            
+        Returns:
+            float: The current price
         """
-        if trading_pair in self.price_data:
-            return self.price_data[trading_pair][-1]
-        else:
+        # First check if we have the price in our cache
+        if symbol in self.prices:
+            return self.prices[symbol]
+        
+        # If not in cache, or if websocket is not running, fetch from REST API
+        try:
+            response = self.rest_client.get_product_ticker(product_id=symbol)
+            price = float(response.get('price', 0))
+            
+            # Update our cache
+            self.prices[symbol] = price
+            return price
+        except Exception as e:
+            logger.error(f"Error fetching price for {symbol}: {e}")
             return 0

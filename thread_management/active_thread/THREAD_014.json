@@ -1,0 +1,49 @@
+{
+    "thread_id": "THREAD_014",
+    "name": "Correct test_config_manager.py",
+    "description": "Modify the test_config_manager_get_test_config function to explicitly set the test configuration values.",
+    "start_time": "2025-03-01T02:18:17.426737",
+    "status": "not_started",
+    "prompt": "Modify the `test_config_manager_get_test_config` function in `tests/test_core/test_config_manager.py` to explicitly set the test configuration values.",
+    "objectives": [
+        "Modify the test_config_manager_get_test_config function to explicitly set the test configuration values."
+    ],
+    "required_components": {
+        "core_files": [],
+        "config_files": [],
+        "test_files": [
+            "tests/test_core/test_config_manager.py"
+        ]
+    },
+    "verification_steps": [],
+    "success_criteria": {
+        "coverage_requirements": {
+            "min_coverage": 85,
+            "critical_files": []
+        },
+        "test_requirements": {
+            "unit_tests_passing": true,
+            "integration_tests_passing": true
+        },
+        "isolation_requirements": {
+            "no_external_imports": true,
+            "workspace_clean": true
+        }
+    },
+    "deliverables": [
+        {
+            "name": "Corrected test_config_manager.py file",
+            "files": [
+                "tests/test_core/test_config_manager.py"
+            ],
+            "status": "pending"
+        }
+    ],
+    "completion_checklist": [],
+    "error_handling": {},
+    "steps": [
+        "Modify test_config_manager.py",
+        "Run tests to confirm changes work as expected.",
+        "Commit changes to GitHub."
+    ]
+}

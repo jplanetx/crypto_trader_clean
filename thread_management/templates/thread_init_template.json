@@ -4,6 +4,7 @@
     "description": "Thread purpose and goals",
     "start_time": null,
     "status": "not_started",
+    "prompt": "Initial prompt for the thread",
     
     "objectives": [
         "Objective 1",

@@ -1,0 +1,45 @@
+{
+    "thread_id": "THREAD_015",
+    "name": "Run Tests and Analyze Failures",
+    "description": "Execute the full test suite and identify any test failures.",
+    "start_time": null,
+    "status": "not_started",
+    "prompt": "Run the full test suite using `pytest tests/` and identify any test failures.",
+    "objectives": [
+        "Execute the full test suite and identify any test failures."
+    ],
+    "required_components": {
+        "core_files": [],
+        "config_files": [],
+        "test_files": []
+    },
+    "verification_steps": [],
+    "success_criteria": {
+        "coverage_requirements": {
+            "min_coverage": 85,
+            "critical_files": []
+        },
+        "test_requirements": {
+            "unit_tests_passing": true,
+            "integration_tests_passing": true
+        },
+        "isolation_requirements": {
+            "no_external_imports": true,
+            "workspace_clean": true
+        }
+    },
+    "deliverables": [
+        {
+            "name": "A list of test failures and their tracebacks.",
+            "files": [],
+            "status": "pending"
+        }
+    ],
+    "completion_checklist": [],
+    "error_handling": {},
+    "steps": [
+        "Run `pytest tests/`.",
+        "Analyze test results and identify failures.",
+        "Commit changes to GitHub."
+    ]
+}

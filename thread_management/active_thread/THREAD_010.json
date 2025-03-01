@@ -1,0 +1,13 @@
+{
+    "thread_number": "THREAD_010",
+    "title": "Dependency and Import Updates",
+    "objectives": "Update all import statements and REST client initializations to use the coinbase-advanced-trade library instead of coinbasepro.",
+    "deliverables": "A documented diff/list of code changes in modules (especially in src/core) reflecting the updated imports and new RESTClient initialization.",
+    "starter_prompt": "Search for coinbasepro references and update them to use coinbase-advanced-trade, ensuring the new RESTClient is properly initialized.",
+    "dependencies": [
+        "Claude SOnnet 3.7 Chat for Auth Fix.md"
+    ],
+    "notes": "Verify consistency across the codebase after updating dependencies to prevent integration issues.",
+    "thread_id": "THREAD_010",
+    "start_time": "2025-02-28T00:56:14.667556"
+}

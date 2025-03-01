@@ -1,0 +1,12 @@
+{
+  "thread_number": "THREAD_011",
+  "title": "Websocket Client Refactoring",
+  "objectives": "Redesign the WebsocketClient to implement separate initialization and subscription steps with updated authentication handling as per the new API.",
+  "deliverables": "Refactored WebsocketClient code that adheres to the new API requirements and passes unit tests.",
+  "starter_prompt": "Refactor the WebsocketClient implementation in the relevant module to implement separate initialization and subscription procedures, and update the authentication flow accordingly.",
+  "dependencies": [
+    "THREAD_010",
+    "Claude SOnnet 3.7 Chat for Auth Fix.md"
+  ],
+  "notes": "Ensure the updated client meets the new API specifications and integrates seamlessly with other system components."
+}
