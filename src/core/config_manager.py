@@ -1,7 +1,7 @@
 """Configuration management for the crypto trader application."""
 import os
 import json
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from typing import Dict, Any, List, Optional
 
 from src.utils.exceptions import ConfigurationError
@@ -35,15 +35,58 @@ class RiskConfig:
         Raises:
             ConfigurationError: If validation fails.
         """
-        try:
-            return cls(
-                max_position_size=Decimal(str(data.get("max_position_size", 5.0))),
-                stop_loss_pct=float(data.get("stop_loss_pct", 0.05)),
-                max_daily_loss=Decimal(str(data.get("max_daily_loss", 500.0))),
-                max_open_orders=int(data.get("max_open_orders", 5)),
-            )
-        except (ValueError, TypeError) as e:
-            raise ConfigurationError(f"Invalid risk configuration: {e}")
+        errors = []
+        max_position_size = Decimal("5.0")  # Default value
+        stop_loss_pct = 0.05  # Default value
+        max_daily_loss = Decimal("500.0")  # Default value
+        max_open_orders = 5  # Default value
+        
+        # Validate max_position_size
+        if "max_position_size" in data:
+            try:
+                max_position_size = Decimal(str(data["max_position_size"]))
+                if max_position_size <= Decimal("0"):
+                    errors.append("max_position_size must be positive")
+            except (InvalidOperation, ValueError, TypeError):
+                errors.append("max_position_size must be a valid number")
+            
+        # Validate stop_loss_pct
+        if "stop_loss_pct" in data:
+            try:
+                stop_loss_pct = float(data["stop_loss_pct"])
+                if stop_loss_pct <= 0 or stop_loss_pct >= 1:
+                    errors.append("stop_loss_pct must be between 0 and 1")
+            except (ValueError, TypeError):
+                errors.append("stop_loss_pct must be a valid number")
+            
+        # Validate max_daily_loss
+        if "max_daily_loss" in data:
+            try:
+                max_daily_loss = Decimal(str(data["max_daily_loss"]))
+                if max_daily_loss <= Decimal("0"):
+                    errors.append("max_daily_loss must be positive")
+            except (InvalidOperation, ValueError, TypeError):
+                errors.append("max_daily_loss must be a valid number")
+            
+        # Validate max_open_orders
+        if "max_open_orders" in data:
+            try:
+                max_open_orders = int(data["max_open_orders"])
+                if max_open_orders <= 0:
+                    errors.append("max_open_orders must be positive")
+            except (ValueError, TypeError):
+                errors.append("max_open_orders must be a valid integer")
+
+        # If any validation errors occurred, raise ConfigurationError
+        if errors:
+            raise ConfigurationError(f"Invalid risk configuration: {'; '.join(errors)}")
+            
+        return cls(
+            max_position_size=max_position_size,
+            stop_loss_pct=stop_loss_pct,
+            max_daily_loss=max_daily_loss,
+            max_open_orders=max_open_orders,
+        )
 
 
 class TradingConfig:
@@ -88,22 +131,104 @@ class TradingConfig:
         Raises:
             ConfigurationError: If validation fails.
         """
+        errors = []
+        
+        # Set default values
+        trading_pairs = ["BTC-USD"]
+        paper_trading = True
+        risk_config = None
+        api_key = ""
+        api_secret = ""
+        private_key = ""
+        strategy_config = {}
+        order_settings = {}
+        logging = {}
+        retry_settings = {}
+        config_version = 1
+        
+        # Validate trading_pairs
+        if "trading_pairs" in data:
+            if not isinstance(data["trading_pairs"], list):
+                errors.append("trading_pairs must be a list")
+            else:
+                trading_pairs = data["trading_pairs"]
+            
+        # Validate paper_trading
+        if "paper_trading" in data:
+            if not isinstance(data["paper_trading"], bool):
+                errors.append("paper_trading must be a boolean")
+            else:
+                paper_trading = data["paper_trading"]
+            
+        # Process risk_config
         try:
-            return cls(
-                trading_pairs=data.get("trading_pairs", ["BTC-USD"]),
-                risk_config=RiskConfig.from_dict(data.get("risk_management", {})),
-                paper_trading=bool(data.get("paper_trading", True)),
-                api_key=str(data.get("api_key", "")),
-                api_secret=str(data.get("api_secret", "")),
-                private_key=str(data.get("private_key", "")),
-                strategy_config=data.get("strategy_config", {}),
-                order_settings=data.get("order_settings", {}),
-                logging=data.get("logging", {}),
-                retry_settings=data.get("retry_settings", {}),
-                config_version=int(data.get("config_version", 1)),
-            )
-        except (ValueError, TypeError) as e:
-            raise ConfigurationError(f"Invalid trading configuration: {e}")
+            risk_config = RiskConfig.from_dict(data.get("risk_management", {}))
+        except ConfigurationError as e:
+            errors.append(str(e))
+        
+        # If risk_config is None (due to exception), create a default one
+        if risk_config is None:
+            risk_config = RiskConfig()
+            
+        # Validate other fields
+        if "api_key" in data:
+            api_key = str(data["api_key"])
+            
+        if "api_secret" in data:
+            api_secret = str(data["api_secret"])
+            
+        if "private_key" in data:
+            private_key = str(data["private_key"])
+            
+        if "strategy_config" in data:
+            if not isinstance(data["strategy_config"], dict):
+                errors.append("strategy_config must be a dictionary")
+            else:
+                strategy_config = data["strategy_config"]
+                
+        if "order_settings" in data:
+            if not isinstance(data["order_settings"], dict):
+                errors.append("order_settings must be a dictionary")
+            else:
+                order_settings = data["order_settings"]
+                
+        if "logging" in data:
+            if not isinstance(data["logging"], dict):
+                errors.append("logging must be a dictionary")
+            else:
+                logging = data["logging"]
+                
+        if "retry_settings" in data:
+            if not isinstance(data["retry_settings"], dict):
+                errors.append("retry_settings must be a dictionary")
+            else:
+                retry_settings = data["retry_settings"]
+                
+        if "config_version" in data:
+            try:
+                config_version = int(data["config_version"])
+                if config_version < 1:
+                    errors.append("config_version must be a positive integer")
+            except (ValueError, TypeError):
+                errors.append("config_version must be an integer")
+        
+        # If any validation errors occurred, raise ConfigurationError
+        if errors:
+            raise ConfigurationError(f"Invalid trading configuration: {'; '.join(errors)}")
+            
+        return cls(
+            trading_pairs=trading_pairs,
+            risk_config=risk_config,
+            paper_trading=paper_trading,
+            api_key=api_key,
+            api_secret=api_secret,
+            private_key=private_key,
+            strategy_config=strategy_config,
+            order_settings=order_settings,
+            logging=logging,
+            retry_settings=retry_settings,
+            config_version=config_version,
+        )
 
 
 class ConfigManager:
