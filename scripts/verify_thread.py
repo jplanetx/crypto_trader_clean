@@ -70,10 +70,19 @@ def check_environment() -> Dict[str, Any]:
     else:
         results["issues"].append("Virtual environment not activated")
         
-    # Check PYTHONPATH
+    # Check PYTHONPATH more robustly
     python_path = os.environ.get('PYTHONPATH', '')
-    project_root = str(Path.cwd())
-    if project_root in python_path:
+    print(f"Current PYTHONPATH: {python_path}")
+    project_root = str(Path.cwd().resolve())
+    valid = False
+    for path in python_path.split(';'):
+        try:
+            if str(Path(path).resolve()) == project_root:
+                valid = True
+                break
+        except Exception:
+            continue
+    if valid:
         results["pythonpath_valid"] = True
     else:
         results["issues"].append("Project root not in PYTHONPATH")
@@ -213,7 +222,8 @@ def run_all_checks(args: argparse.Namespace) -> None:
         logging.info("Environment verified successfully")
     meets_threshold, _ = check_coverage(args.coverage_threshold)
     if not meets_threshold:
-        sys.exit(1)
+         sys.exit(1)
+    print("All verification checks passed successfully.")
     sys.exit(0)
 
 def check_directories_and_exit() -> None:

@@ -14,7 +14,7 @@ def test_trading_core_initialization(MockConfigManager):
     """Test TradingCore initialization."""
     tc = TradingCore(config_path='config/config.json')
     assert tc is not None
-    assert isinstance(tc.config_manager, MockConfigManager)
+    assert tc.config_manager == MockConfigManager.return_value
 
 @patch('src.core.trading_core.ConfigManager')
 # Dummy implementations to override actual trading behavior in tests
@@ -34,17 +34,17 @@ def trading_core_instance(monkeypatch):
     }
 
     # Write mock API credentials to the configuration file
-    with open('config/config.json', 'w') as f:
+    with open("config/config.json", "w") as f:
         json.dump(
             {
-                "api_key": mock_api_credentials['api_key'],
-                "api_secret": mock_api_credentials['api_secret'],
+                "api_key": mock_api_credentials["api_key"],
+                "api_secret": mock_api_credentials["api_secret"],
                 "private_key": "mock_private_key",
                 "trading_pairs": ["BTC-USD", "ETH-USD"],
                 "paper_trading": True,
                 "risk_management": {
                     "max_position_size": 10,
-                    "stop_loss_pct": 5,
+                    "stop_loss_pct": 0.05,
                     "max_daily_loss": 1000,
                     "max_open_orders": 5
                 },
@@ -78,6 +78,9 @@ def trading_core_instance(monkeypatch):
             f,
             indent=4
         )
+    with open("config/config.json", "r") as f_read:
+        config_data = json.load(f_read)
+    assert config_data.get("api_key") is not None, "Configuration file missing api_key"
 
     # Mock Coinbase client and create_order method
     mock_coinbase_client = AsyncMock()

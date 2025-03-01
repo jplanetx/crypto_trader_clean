@@ -149,7 +149,7 @@ def test_config_manager_invalid_json(config_file_path):
         config_manager.load_config()
 
 def test_config_manager_get_test_config():
-    """Test getting test configuration."""
+    """Test getting test configuration with explicit values."""
     config_manager = ConfigManager()
     test_config_data = {
         'trading_pairs': ['BTC-USD'],
@@ -192,30 +192,41 @@ def test_config_manager_get_test_config():
     }
     config_manager.set_test_config(test_config_data)
     test_config = config_manager.get_test_config()
-
+    
     assert isinstance(test_config, TradingConfig)
+    # Verify trading configuration
     assert 'BTC-USD' in test_config.trading_pairs
     assert test_config.paper_trading is True
     assert test_config.api_key == "test_api_key"
     assert test_config.api_secret == "test_api_secret"
     assert test_config.private_key == "test_private_key"
+    # Explicitly verify risk management configuration
+    assert test_config.risk_config.max_position_size == Decimal('1.0')
+    assert abs(test_config.risk_config.stop_loss_pct - 0.02) < 1e-9
+    assert test_config.risk_config.max_daily_loss == Decimal('100.0')
+    assert test_config.risk_config.max_open_orders == 3
+    # Verify strategy configuration
     assert test_config.strategy_config['ma_window'] == 20
     assert test_config.strategy_config['rsi_window'] == 14
     assert test_config.strategy_config['rsi_oversold'] == 30
     assert test_config.strategy_config['rsi_overbought'] == 70
     assert test_config.strategy_config['short_window'] == 5
     assert test_config.strategy_config['long_window'] == 20
+    # Verify order settings
     assert test_config.order_settings['default_size'] == 0.1
     assert test_config.order_settings['min_trade_interval'] == 60
     assert test_config.order_settings['max_slippage_pct'] == 0.01
+    # Verify logging configuration
     assert test_config.logging['level'] == 'INFO'
     assert test_config.logging['file_path'] == 'logs/trading.log'
     assert test_config.logging['rotation'] == 'daily'
     assert test_config.logging['retention'] == '30 days'
+    # Verify retry settings
     assert test_config.retry_settings['max_attempts'] == 3
     assert test_config.retry_settings['initial_delay'] == 1.0
     assert test_config.retry_settings['max_delay'] == 60.0
     assert test_config.retry_settings['backoff_factor'] == 2.0
+    # Verify config version
     assert test_config.config_version == 1
 
 def test_validate_trading_pair(config_file_path, valid_config_data):

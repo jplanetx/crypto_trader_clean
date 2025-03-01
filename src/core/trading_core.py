@@ -59,7 +59,7 @@ class TradingCore:
         try:
             # Load configuration
             self.config_manager = ConfigManager(config_path)
-            self.config: TradingConfig = self.config_manager.config
+            self.config: TradingConfig = self.config_manager.load_config()
 
             # Initialize exchange interface
             if exchange_interface:
@@ -171,7 +171,7 @@ class TradingCore:
         
         trading_pairs = self.config.trading_pairs
         if not trading_pairs:
-            error_msg = "No trading pairs configured"
+            error_msg = "At least one product ID is required"
             logger.error(error_msg)
             raise ConfigurationError(error_msg)
 
