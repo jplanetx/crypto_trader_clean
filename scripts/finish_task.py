@@ -51,8 +51,8 @@ def complete_task(workitem_id: str, component: str):
             content = f.read()
         
         # Update status from "In Progress" to "Complete"
-        pattern = rf"### WORKITEM-{workitem_id}:.*?\nStatus: In Progress"
-        replacement = rf"### WORKITEM-{workitem_id}:\1\nStatus: Complete"
+        pattern = rf"### WORKITEM-{workitem_id}: .*?\nStatus: In Progress"
+        replacement = f"### WORKITEM-{workitem_id}: Implement Authentication Improvements\nStatus: Complete"
         
         if re.search(pattern, content):
             content = re.sub(pattern, replacement, content)
