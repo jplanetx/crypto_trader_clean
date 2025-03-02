@@ -322,19 +322,73 @@ class CoinbaseStreaming:
             
         Returns:
             float: The current price
+            
+        Raises:
+            StreamingError: If price data cannot be retrieved or is invalid
         """
         # First check if we have the price in our cache
         if symbol in self.prices:
             return self.prices[symbol]
         
-        # If not in cache, or if websocket is not running, fetch from REST API
+        # If not in cache, fetch from REST API
         try:
+            logger.debug(f"Price not in cache for {symbol}, fetching from REST API")
             response = self.rest_client.get_product_ticker(product_id=symbol)
+            
+            if not response or 'price' not in response:
+                error_msg = f"Invalid response from API for {symbol}"
+                logger.error(error_msg)
+                raise StreamingError(error_msg)
+                
             price = float(response.get('price', 0))
+            if price <= 0:
+                error_msg = f"Invalid price received for {symbol}: {price}"
+                logger.error(error_msg)
+                raise StreamingError(error_msg)
             
             # Update our cache
             self.prices[symbol] = price
+            logger.debug(f"Updated cache with price for {symbol}: {price}")
             return price
+            
+        except ValueError as e:
+            error_msg = f"Invalid price format for {symbol}: {e}"
+            logger.error(error_msg)
+            raise StreamingError(error_msg)
         except Exception as e:
-            logger.error(f"Error fetching price for {symbol}: {e}")
-            return 0
+            error_msg = f"Error fetching price for {symbol}: {e}"
+            logger.error(error_msg)
+            raise StreamingError(error_msg)
+
+    def get_ticker(self, symbol: str) -> Dict[str, Any]:
+        """
+        Get full ticker data for a specific trading pair.
+        
+        Args:
+            symbol: Trading pair symbol
+            
+        Returns:
+            Dict[str, Any]: Full ticker data
+            
+        Raises:
+            StreamingError: If ticker data is unavailable
+        """
+        if symbol in self.ticker_data:
+            return self.ticker_data[symbol]
+            
+        error_msg = f"No ticker data available for {symbol}"
+        logger.warning(error_msg)
+        raise StreamingError(error_msg)
+
+    def is_connected(self) -> bool:
+        """
+        Check if the WebSocket connection is active.
+        
+        Returns:
+            bool: True if connected, False otherwise
+        """
+        # Consider connection stale if no heartbeat in 30 seconds
+        if time.time() - self.last_heartbeat > 30:
+            self.connected = False
+            
+        return self.connected and self.websocket is not None

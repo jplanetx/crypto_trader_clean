@@ -1,102 +1,120 @@
+#!/usr/bin/env python
+"""
+Test script for authentication with token refresh functionality.
+"""
+import sys
+import os
+import argparse
 import json
-import requests
+import time
 import hmac
 import hashlib
-import time
 import base64
-import os
-from cryptography.hazmat.primitives import serialization
-from cryptography.hazmat.backends import default_backend
+import requests
 
-# Load API keys from file
-with open('config/cdp_api_key_2.json', 'r') as f:
-    api_keys = json.load(f)
-
-api_key = api_keys['name']
-private_key_pem = api_keys['privateKey']
-
-# Extract the actual API key ID from the full string
-api_key_parts = api_key.split('/')
-if len(api_key_parts) >= 4:
-    api_key_id = api_key_parts[-1]  # Get the last part which should be the key ID
-else:
-    api_key_id = api_key  # Use as is if not in the expected format
-
-print(f"Using API Key ID: {api_key_id}")
-print(f"Private Key (first 20 chars): {private_key_pem[:20]}...")
-
-# Load the private key
-try:
-    # Remove PEM headers and extract just the key part
-    key_parts = private_key_pem.split('-----')
-    if len(key_parts) >= 3:
-        key_content = key_parts[2].replace('BEGIN EC PRIVATE KEY', '').replace('END EC PRIVATE KEY', '').strip()
-        print(f"Extracted key content (first 20 chars): {key_content[:20]}...")
-        private_key_bytes = base64.b64decode(key_content)
-        print("Successfully extracted private key")
+def test_auth_with_refresh(api_key=None, api_secret=None, force_refresh=False):
+    """Test the authentication with token refresh."""
+    print("Testing authentication with token refresh...")
+    
+    # Load API credentials if not provided
+    if not api_key or not api_secret:
+        try:
+            with open('config/cdp_api_key_2.json', 'r') as f:
+                config = json.load(f)
+                api_key = config.get('name')
+                api_secret = config.get('privateKey')
+        except (FileNotFoundError, json.JSONDecodeError) as e:
+            print(f"Error loading API credentials: {e}")
+            return False
+    
+    if not api_key or not api_secret:
+        print("API key and secret are required")
+        return False
+    
+    # Define the API endpoint
+    api_url = "https://api.coinbase.com"
+    endpoint = "/api/v3/brokerage/accounts"
+    
+    # Simulate token expiration if force_refresh is True
+    if force_refresh:
+        print("Simulating token expiration...")
+        # Use an expired timestamp to force a 401 response
+        timestamp = str(int(time.time()) - 3600)  # 1 hour ago
     else:
-        print("Could not extract key content from private key")
-        private_key_bytes = private_key_pem.encode('utf-8')
-except Exception as e:
-    print(f"Error loading private key: {e}")
-    private_key_bytes = private_key_pem.encode('utf-8')
-
-# Define the API endpoint
-base_url = "https://api.coinbase.com"
-endpoint = "/api/v3/brokerage/products"  # List products endpoint
-
-# Set the timestamp
-timestamp = str(int(time.time()))
-method = "GET"
-request_path = endpoint
-body = ""
-
-# Create the message to sign
-message = timestamp + method + request_path + body
-print(f"Message to sign: {message}")
-
-# Sign the message
-signature = hmac.new(
-    private_key_bytes,
-    message.encode('utf-8'),
-    digestmod=hashlib.sha256
-).digest()
-
-signature_b64 = base64.b64encode(signature).decode('utf-8')
-print(f"Signature: {signature_b64}")
-
-# Set the headers
-headers = {
-    "Content-Type": "application/json",
-    "CB-ACCESS-KEY": api_key_id,
-    "CB-ACCESS-SIGN": signature_b64,
-    "CB-ACCESS-TIMESTAMP": timestamp
-}
-
-print(f"Request Headers: {headers}")
-print(f"Making request to: {base_url}{endpoint}")
-
-try:
+        timestamp = str(int(time.time()))
+    
+    # Set the request method and body
+    method = "GET"
+    body = ""
+    
+    # Generate the signature
+    message = timestamp + method + endpoint + body
+    signature = hmac.new(
+        api_secret.encode('utf-8'),
+        message.encode('utf-8'),
+        digestmod=hashlib.sha256
+    ).digest()
+    signature_b64 = base64.b64encode(signature).decode('utf-8')
+    
+    # Set the headers
+    headers = {
+        "Content-Type": "application/json",
+        "CB-ACCESS-KEY": api_key,
+        "CB-ACCESS-SIGN": signature_b64,
+        "CB-ACCESS-TIMESTAMP": timestamp
+    }
+    
     # Make the request
-    response = requests.get(base_url + endpoint, headers=headers)
-    
-    # Print response status
-    print(f"Response Status Code: {response.status_code}")
-    
-    # Try to parse response as JSON
     try:
-        response_json = response.json()
-        print(f"Response: {json.dumps(response_json, indent=2)}")
-    except:
-        print(f"Raw Response: {response.text}")
+        response = requests.get(api_url + endpoint, headers=headers)
+        
+        # If we get a 401 (unauthorized) and force_refresh is True, retry with a new token
+        if response.status_code == 401 and force_refresh:
+            print("Received 401 unauthorized, refreshing token...")
+            
+            # Generate a new timestamp and signature
+            timestamp = str(int(time.time()))
+            message = timestamp + method + endpoint + body
+            signature = hmac.new(
+                api_secret.encode('utf-8'),
+                message.encode('utf-8'),
+                digestmod=hashlib.sha256
+            ).digest()
+            signature_b64 = base64.b64encode(signature).decode('utf-8')
+            
+            # Update the headers with the new timestamp and signature
+            headers["CB-ACCESS-TIMESTAMP"] = timestamp
+            headers["CB-ACCESS-SIGN"] = signature_b64
+            
+            # Retry the request
+            print("Retrying with refreshed token...")
+            response = requests.get(api_url + endpoint, headers=headers)
+        
+        response.raise_for_status()
+        
+        # Print the response
+        accounts = response.json()
+        print(f"Authentication successful! Found {len(accounts.get('accounts', []))} accounts.")
+        return True
+    except requests.exceptions.RequestException as e:
+        print(f"Authentication failed: {e}")
+        return False
+    except Exception as e:
+        print(f"Authentication failed: {e}")
+        return False
+
+def main():
+    """Main function."""
+    parser = argparse.ArgumentParser(description='Test Coinbase Advanced Trade API authentication with token refresh')
+    parser.add_argument('--api-key', help='API key')
+    parser.add_argument('--api-secret', help='API secret')
+    parser.add_argument('--force-refresh', action='store_true', help='Force token refresh')
     
-    # Raise exception for non-2xx status codes
-    response.raise_for_status()
+    args = parser.parse_args()
     
-except requests.exceptions.RequestException as e:
-    print(f"Request failed: {e}")
-    if hasattr(e, 'response') and e.response:
-        print(f"Response status code: {e.response.status_code}")
-        print(f"Response body: {e.response.text}")
-except Exception as e:
-    print(f"Error: {e}")
+    success = test_auth_with_refresh(args.api_key, args.api_secret, args.force_refresh)
+    
+    return 0 if success else 1
+
+if __name__ == "__main__":
+    sys.exit(main())

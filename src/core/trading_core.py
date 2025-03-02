@@ -585,6 +585,96 @@ class TradingCore:
             symbol (str): The trading pair symbol (e.g., 'BTC-USD')
             
         Returns:
+            dict: Position information including size, entry price, current value,
+                 and optional error message if retrieval failed
+                 
+        Raises:
+            TradingException: If the position cannot be retrieved due to a critical error
+        """
+        try:
+            # Initialize default position
+            position = {
+                'size': 0,
+                'entry_price': 0,
+                'current_value': 0,
+                'symbol': symbol,
+                'timestamp': datetime.now(timezone.utc).isoformat()
+            }
+            
+            # Parse the symbol to get the base currency
+            parts = symbol.split('-')
+            if len(parts) != 2:
+                logger.warning(f"Invalid trading pair format: {symbol}")
+                position['error'] = f"Invalid trading pair format: {symbol}"
+                return position
+                
+            base_currency = parts[0]
+            position['currency'] = base_currency
+            
+            # Get accounts from exchange
+            logger.debug(f"Retrieving accounts to find position for {base_currency}")
+            accounts = await self.exchange_interface.get_accounts()
+            
+            if not accounts:
+                logger.warning(f"No accounts returned from exchange")
+                position['error'] = "No accounts returned from exchange"
+                return position
+                
+            # Find the account for this currency
+            account = None
+            for acc in accounts:
+                if acc.get('currency') == base_currency:
+                    account = acc
+                    break
+                    
+            if not account:
+                logger.debug(f"No account found for {base_currency}")
+                return position
+                
+            # Extract position data
+            try:
+                position['size'] = float(account.get('balance', 0))
+                
+                # Some exchanges provide average entry price
+                if 'avg_entry_price' in account:
+                    position['entry_price'] = float(account.get('avg_entry_price', 0))
+                
+                # Get current price and calculate position value
+                current_price = await self.get_current_price(symbol)
+                position['current_price'] = current_price
+                position['current_value'] = position['size'] * current_price
+                
+                logger.info(f"Retrieved position for {symbol}: Size={position['size']}, Value={position['current_value']}")
+                
+            except (ValueError, TypeError) as e:
+                logger.error(f"Error parsing account data for {base_currency}: {e}")
+                position['error'] = f"Error parsing account data: {e}"
+            
+            return position
+            
+        except Exception as e:
+            error_msg = f"Failed to get position for {symbol}: {e}"
+            logger.error(error_msg)
+            
+            # Return a fallback position with error info instead of raising exception
+            # This allows the trading system to continue operation even if position retrieval fails
+            return {
+                'size': 0,
+                'entry_price': 0,
+                'current_value': 0,
+                'symbol': symbol,
+                'timestamp': datetime.now(timezone.utc).isoformat(),
+                'error': str(e)
+            }
+    
+    async def get_position(self, symbol: str) -> Dict[str, Any]:
+        """
+        Get the current position for a specific trading pair.
+        
+        Args:
+            symbol (str): The trading pair symbol (e.g., 'BTC-USD')
+            
+        Returns:
             dict: Position information including size, entry price, etc.
         """
         try:
