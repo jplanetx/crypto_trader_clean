@@ -1,4 +1,4 @@
-"""Core trading system components."""
+"""Core package initialization."""
 from .order_executor import OrderExecutor
 from .trading_core import TradingCore
 from .config_manager import ConfigManager, TradingConfig, RiskConfig

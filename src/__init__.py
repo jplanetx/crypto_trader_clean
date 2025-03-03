@@ -1,6 +1,4 @@
-"""
-CryptoTrader Clean - A streamlined cryptocurrency trading system.
-"""
+"""Package initialization."""
 from .core import (
     OrderExecutor,
     TradingCore,

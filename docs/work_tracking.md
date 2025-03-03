@@ -4,27 +4,32 @@ This document serves as the central tracking system for all work items in the pr
 
 ## Active Work Items
 
-### WORKITEM-001: Implement Authentication Improvements
-Status: Complete
-Component: Authentication
+### WORKITEM-003: Order Execution System
+Status: In Progress
+Components: order_executor
 Priority: High
-Description: Improve the authentication system to handle token refreshes more reliably.
+Description: Implement order execution system that handles order placement, tracking, and management.
 
-### WORKITEM-002: Enhance Error Handling
+### WORKITEM-004: Trading Core
 Status: Pending
-Component: Core
-Priority: Medium
-Description: Implement more robust error handling throughout the application.
-
-### WORKITEM-003: Optimize Database Queries
-Status: Pending
-Component: Database
-Priority: Low
-Description: Review and optimize database queries for better performance.
+Components: trading_core
+Priority: High
+Description: Implement trading core that coordinates trading operations and manages positions.
 
 ## Completed Work Items
 
-No completed work items yet.
+### WORKITEM-001: Configuration Management
+Status: Complete
+Components: config_manager
+Priority: High
+Description: Implement configuration loading, validation, and access mechanisms.
+
+### WORKITEM-002: API Integration
+Status: Complete
+Components: coinbase_client
+Priority: High
+Description: Implement real-time price data streaming from Coinbase API. 
+Note: Implemented as `CoinbaseClient` instead of `CoinbaseStreaming` to resolve module import issues.
 
 ## Work Item Template
 

@@ -1,16 +1,195 @@
-"""Tests for order_executor.py."""
+"""Tests for OrderExecutor."""
 import pytest
+from unittest.mock import MagicMock, patch, AsyncMock
 from decimal import Decimal
-from unittest.mock import AsyncMock, patch
 
-from src.core.order_executor import OrderExecutor, CoinbaseExchange
-from src.core.config_manager import RiskConfig
-from src.utils.exceptions import (
-    OrderExecutionError,
-    ValidationError,
-    PositionError,
-    ExchangeError
-)
+from src.core.order_executor import OrderExecutor, Order, OrderType, OrderSide, OrderStatus, CoinbaseExchange
+from src.core.config_manager import ConfigManager, RiskConfig, TradingConfig
+from src.utils.exceptions import ValidationError, OrderExecutionError, PositionError, ExchangeError
+
+
+@pytest.fixture
+def config_manager():
+    """Create a ConfigManager with test configuration."""
+    manager = ConfigManager()
+    
+    # Create risk config
+    risk_config = RiskConfig(
+        max_position_size=Decimal("1.0"),
+        stop_loss_pct=0.05,
+        max_daily_loss=Decimal("100.0"),
+        max_open_orders=3
+    )
+    
+    # Create trading config
+    trading_config = TradingConfig(
+        trading_pairs=["BTC-USD", "ETH-USD"],
+        risk_config=risk_config,
+        paper_trading=True,
+        api_key="test_key",
+        api_secret="test_secret"
+    )
+    
+    # Set test config
+    manager._test_config = trading_config
+    manager.config = trading_config
+    
+    return manager
+
+
+@pytest.fixture
+def mock_client():
+    """Create a mock client."""
+    client = MagicMock()
+    client.get_current_price.return_value = 50000.0
+    return client
+
+
+@pytest.fixture
+def order_executor(config_manager, mock_client):
+    """Create an OrderExecutor instance."""
+    return OrderExecutor(mock_client, config_manager)
+
+
+def test_initialization(order_executor, mock_client, config_manager):
+    """Test OrderExecutor initialization."""
+    assert order_executor.client == mock_client
+    assert order_executor.config_manager == config_manager
+    assert order_executor.is_paper_trading == True
+    assert isinstance(order_executor.open_orders, dict)
+    assert isinstance(order_executor.order_history, dict)
+
+
+def test_validate_order_valid(order_executor):
+    """Test validating a valid order."""
+    # Create a valid order
+    order = Order(
+        symbol="BTC-USD",
+        side=OrderSide.BUY,
+        order_type=OrderType.MARKET,
+        quantity=Decimal("0.1")
+    )
+    
+    # Validate it
+    is_valid, error_message = order_executor.validate_order(order)
+    
+    # Should be valid
+    assert is_valid == True
+    assert error_message is None
+
+
+def test_validate_order_invalid_symbol(order_executor):
+    """Test validating an order with an invalid symbol."""
+    # Create an order with invalid symbol
+    order = Order(
+        symbol="INVALID-USD",
+        side=OrderSide.BUY,
+        order_type=OrderType.MARKET,
+        quantity=Decimal("0.1")
+    )
+    
+    # Validate it
+    is_valid, error_message = order_executor.validate_order(order)
+    
+    # Should be invalid
+    assert is_valid == False
+    assert "not allowed" in error_message.lower()
+
+
+def test_validate_order_size_too_large(order_executor):
+    """Test validating an order that exceeds max position size."""
+    # Create an order with too large size
+    order = Order(
+        symbol="BTC-USD",
+        side=OrderSide.BUY,
+        order_type=OrderType.MARKET,
+        quantity=Decimal("2.0")  # Exceeds max_position_size of 1.0
+    )
+    
+    # Validate it
+    is_valid, error_message = order_executor.validate_order(order)
+    
+    # Should be invalid
+    assert is_valid == False
+    assert "exceeds maximum" in error_message.lower()
+
+
+def test_validate_order_too_many_open_orders(order_executor):
+    """Test validating when there are too many open orders."""
+    # Add max number of open orders
+    for i in range(3):  # max_open_orders is 3
+        order_id = f"test-order-{i}"
+        order = Order(
+            symbol="BTC-USD",
+            side=OrderSide.BUY,
+            order_type=OrderType.LIMIT,
+            quantity=Decimal("0.1"),
+            price=Decimal("50000"),
+            client_order_id=order_id
+        )
+        order_executor.open_orders[order_id] = order
+    
+    # Create a new order
+    order = Order(
+        symbol="BTC-USD",
+        side=OrderSide.BUY,
+        order_type=OrderType.MARKET,
+        quantity=Decimal("0.1")
+    )
+    
+    # Validate it
+    is_valid, error_message = order_executor.validate_order(order)
+    
+    # Should be invalid
+    assert is_valid == False
+    assert "too many open orders" in error_message.lower()
+
+
+def test_execute_order_paper_market(order_executor, mock_client):
+    """Test executing a paper market order."""
+    # Execute a paper market order
+    order = order_executor.execute_order(
+        symbol="BTC-USD",
+        side="buy",
+        order_type="market",
+        quantity="0.1"
+    )
+    
+    # Verify order properties
+    assert order.symbol == "BTC-USD"
+    assert order.side == OrderSide.BUY
+    assert order.order_type == OrderType.MARKET
+    assert order.quantity == Decimal("0.1")
+    assert order.status == OrderStatus.FILLED
+    assert order.filled_quantity == Decimal("0.1")
+    assert order.avg_fill_price == Decimal("50000")
+    assert order.exchange_order_id is not None
+    assert order.client_order_id in order_executor.order_history
+    
+    # Verify mock was called
+    mock_client.get_current_price.assert_called_once_with("BTC-USD")
+
+
+def test_execute_order_paper_limit(order_executor):
+    """Test executing a paper limit order."""
+    # Execute a paper limit order
+    order = order_executor.execute_order(
+        symbol="BTC-USD",
+        side="sell",
+        order_type="limit",
+        quantity="0.1",
+        price="60000"
+    )
+    
+    # Verify order properties
+    assert order.symbol == "BTC-USD"
+    assert order.side == OrderSide.SELL
+    assert order.order_type == OrderType.LIMIT
+    assert order.quantity == Decimal("0.1")
+    assert order.price == Decimal("60000")
+    assert order.status == OrderStatus.OPEN
+    assert order.exchange_order_id is not None
+
 
 @pytest.fixture
 def mock_exchange():

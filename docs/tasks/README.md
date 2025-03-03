@@ -1,6 +1,16 @@
-# Task Documentation
+# Task Documents
 
-This directory contains detailed documentation for each work item in the project. Each task is documented in a separate file named `WORKITEM-XXX.md`, where XXX is the work item number.
+This directory contains detailed documents for each work item. When starting work on a new task, create a document here with the naming convention `WORKITEM-XXX.md`.
+
+Each task document should include:
+
+1. Detailed description of the task
+2. Implementation approach
+3. Testing strategy
+4. Notes on any decisions made during implementation
+5. Verification results
+
+Use the task documents to track your progress and document your thought process as you implement each work item.
 
 ## Structure
 

@@ -1,9 +1,8 @@
 """
-Coinbase WebSocket streaming module for real-time market data.
+Coinbase API client for real-time market data.
 
-This module handles WebSocket connections to Coinbase's Advanced Trade API,
-providing real-time market data streams with proper authentication and
-error handling.
+This module provides a client for the Coinbase Advanced Trade API,
+including both WebSocket streaming and REST API access.
 """
 import asyncio
 import json
@@ -20,16 +19,15 @@ import aiohttp
 logger = logging.getLogger(__name__)
 logger.propagate = True  # Ensure logs propagate to parent loggers
 
-class StreamingError(Exception):
-    """Exception raised for errors in the streaming module."""
+class ApiError(Exception):
+    """Exception raised for errors in the API client."""
     pass
 
-class CoinbaseStreaming:
+class CoinbaseClient:
     """
-    Manages WebSocket connections to Coinbase's Advanced Trade API.
+    Client for the Coinbase Advanced Trade API.
     
-    Handles authentication, subscription to market data channels, and
-    processing of real-time market data streams.
+    Provides functionality for both WebSocket streaming and REST API access.
     """
     
     def __init__(
@@ -40,7 +38,7 @@ class CoinbaseStreaming:
         channels: List[str] = None
     ):
         """
-        Initialize the CoinbaseStreaming instance.
+        Initialize the CoinbaseClient instance.
         
         Args:
             api_key: Coinbase API key
@@ -63,7 +61,7 @@ class CoinbaseStreaming:
         self.ticker_data: Dict[str, Dict[str, Any]] = {}
         self.last_heartbeat = 0
         
-        logger.info(f"Initialized CoinbaseStreaming with {len(product_ids)} product IDs")
+        logger.info(f"Initialized CoinbaseClient with {len(product_ids)} product IDs")
 
     async def connect(self):
         """
@@ -73,7 +71,7 @@ class CoinbaseStreaming:
             WebSocketClientProtocol: Connected and authenticated WebSocket client
             
         Raises:
-            StreamingError: If connection or authentication fails
+            ApiError: If connection or authentication fails
         """
         try:
             logger.info("Connecting to Coinbase WebSocket API...")
@@ -87,14 +85,14 @@ class CoinbaseStreaming:
             return self.websocket
         except Exception as e:
             logger.error(f"Connection failed: {e}")
-            raise StreamingError(f"Connection failed: {e}")
+            raise ApiError(f"Connection failed: {e}")
 
     async def authenticate(self):
         """
         Authenticate the WebSocket connection using API credentials.
         
         Raises:
-            StreamingError: If authentication fails
+            ApiError: If authentication fails
         """
         try:
             timestamp = str(int(time.time()))
@@ -127,20 +125,20 @@ class CoinbaseStreaming:
             data = json.loads(response)
             
             if data.get('type') == 'error':
-                raise StreamingError(f"Authentication failed: {data.get('message')}")
+                raise ApiError(f"Authentication failed: {data.get('message')}")
                 
             logger.info("Authentication successful")
             
         except Exception as e:
             logger.error(f"Authentication failed: {e}")
-            raise StreamingError(f"Authentication failed: {e}")
+            raise ApiError(f"Authentication failed: {e}")
 
     async def subscribe(self):
         """
         Subscribe to specified channels for given product IDs.
         
         Raises:
-            StreamingError: If subscription fails
+            ApiError: If subscription fails
         """
         try:
             # Create subscription message
@@ -159,13 +157,13 @@ class CoinbaseStreaming:
             data = json.loads(response)
             
             if data.get('type') == 'error':
-                raise StreamingError(f"Subscription failed: {data.get('message')}")
+                raise ApiError(f"Subscription failed: {data.get('message')}")
                 
             logger.info(f"Subscribed to {len(self.product_ids)} products")
             
         except Exception as e:
             logger.error(f"Subscription failed: {e}")
-            raise StreamingError(f"Subscription failed: {e}")
+            raise ApiError(f"Subscription failed: {e}")
 
     async def receive_data(self):
         """
@@ -174,7 +172,7 @@ class CoinbaseStreaming:
         This method runs in a loop until the connection is closed.
         """
         if not self.websocket:
-            raise StreamingError("WebSocket not connected")
+            raise ApiError("WebSocket not connected")
             
         try:
             logger.info("Starting data reception loop")
@@ -189,7 +187,7 @@ class CoinbaseStreaming:
         except websockets.exceptions.ConnectionClosed as e:
             self.connected = False
             logger.error(f"WebSocket connection closed: {e}")
-            raise StreamingError(f"Connection closed: {e}")
+            raise ApiError(f"Connection closed: {e}")
 
     async def process_message(self, message: Dict[str, Any]):
         """
@@ -211,7 +209,7 @@ class CoinbaseStreaming:
             logger.debug("Heartbeat received")
         elif message_type == 'error':
             logger.error(f"Error from WebSocket: {message.get('message')}")
-            raise StreamingError(f"Stream error: {message.get('message')}")
+            raise ApiError(f"Stream error: {message.get('message')}")
         else:
             logger.debug(f"Received message of type {message_type}")
 
@@ -267,7 +265,7 @@ class CoinbaseStreaming:
             float: The current price
             
         Raises:
-            StreamingError: If price data cannot be retrieved or is invalid
+            ApiError: If price data cannot be retrieved or is invalid
         """
         # First check if we have the price in our cache
         if symbol in self.prices:
@@ -284,13 +282,13 @@ class CoinbaseStreaming:
             if not response or 'price' not in response:
                 error_msg = f"Invalid response from API for {symbol}"
                 logger.error(error_msg)
-                raise StreamingError(error_msg)
+                raise ApiError(error_msg)
                 
             price = float(response.get('price', 0))
             if price <= 0:
                 error_msg = f"Invalid price received for {symbol}: {price}"
                 logger.error(error_msg)
-                raise StreamingError(error_msg)
+                raise ApiError(error_msg)
             
             # Update our cache
             self.prices[symbol] = price
@@ -300,7 +298,7 @@ class CoinbaseStreaming:
         except ValueError as e:
             error_msg = f"Invalid price format for {symbol}: {e}"
             logger.error(error_msg)
-            raise StreamingError(error_msg)
+            raise ApiError(error_msg)
         except Exception as e:
             error_msg = f"Error fetching price for {symbol}: {e}"
             logger.error(error_msg)
@@ -348,3 +346,15 @@ class CoinbaseStreaming:
                 else:
                     logger.error(f"API request failed: {response.status}")
                     return {}
+
+    # Add convenience method for paper trading
+    def simulate_price_update(self, symbol: str, price: float):
+        """
+        Simulate a price update for paper trading.
+        
+        Args:
+            symbol: The trading pair symbol
+            price: The new price
+        """
+        self.prices[symbol] = price
+        logger.debug(f"Simulated price update for {symbol}: {price}")

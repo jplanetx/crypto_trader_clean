@@ -7,6 +7,20 @@
       "env": {},
       "disabled": false,
       "autoApprove": []
+    },
+    "github.com/Garoth/wolframalpha-llm-mcp": {
+      "command": "node",
+      "args": ["build/index.js"],
+      "cwd": "wolframalpha-llm-mcp",
+      "env": {
+        "WOLFRAM_LLM_APP_ID": "your-api-key-here"
+      },
+      "disabled": false,
+      "autoApprove": [
+        "ask_llm",
+        "get_simple_answer",
+        "validate_key"
+      ]
     }
   }
 }
