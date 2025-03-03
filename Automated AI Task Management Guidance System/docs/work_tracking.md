@@ -10,11 +10,11 @@ Component: Authentication
 Priority: High
 Description: Improve the authentication system to handle token refreshes more reliably.
 
-### WORKITEM-002: Enhance Error Handling
-Status: Pending
-Component: Core
-Priority: Medium
-Description: Implement more robust error handling throughout the application.
+### WORKITEM-002: Automated AI Task Management Guidance System
+Status: In Progress
+Component: Task Management
+Priority: High
+Description: Create a comprehensive task management guidance system for the project.
 
 ### WORKITEM-003: Optimize Database Queries
 Status: Pending
